@@ -1,0 +1,493 @@
+Include 'include/main.flib'
+Include 'include/display.flib'
+x86@@toRegister                         =                                       0
+x86@@toMemory                           =                                       1
+x86@@regAX                              =                                       0
+x86@@regCX                              =                                       1
+x86@@regDX                              =                                       2
+x86@@regBX                              =                                       3
+x86@@regSP                              =                                       4
+x86@@regBP                              =                                       5
+x86@@regSI                              =                                       6
+x86@@regDI                              =                                       7
+
+Macro x86@@code_8086                    ignore&
+  Local x86@@parseOperand, x86@@opImmediat, x86@@opMemory
+  Element x86.reg
+  Element x86.r8	: x86.reg + byte
+  Element al? : x86.r8    + 0
+  Element cl? : x86.r8    + 1
+  Element dl? : x86.r8    + 2
+  Element bl? : x86.r8    + 3
+  Element ah? : x86.r8    + 4
+  Element ch? : x86.r8    + 5
+  Element dh? : x86.r8    + 6
+  Element bh? : x86.r8    + 7
+  Element x86.r16 : x86.reg + word
+  Element ax? : x86.r16   + 0
+  Element cx? : x86.r16   + 1
+  Element dx? : x86.r16   + 2
+  Element bx? : x86.r16   + 3
+  Element sp? : x86.r16   + 4
+  Element bp? : x86.r16   + 5
+  Element si? : x86.r16   + 6
+  Element di? : x86.r16   + 7
+  Element x86.r32 : x86.reg + dword
+  Element eax? : x86.r32  + 0
+  Element ecx? : x86.r32  + 1
+  Element edx? : x86.r32  + 2
+  Element ebx? : x86.r32  + 3
+  Element esp? : x86.r32  + 4
+  Element ebp? : x86.r32  + 5
+  Element esi? : x86.r32  + 6
+  Element edi? : x86.r32  + 7
+  Element x86.r64 : x86.reg + qword
+  Element rax? : x86.r64  + 0
+  Element rcx? : x86.r64  + 1
+  Element rdx? : x86.r64  + 2
+  Element rbx? : x86.r64  + 3
+  Element rsp? : x86.r64  + 4
+  Element rbp? : x86.r64  + 5
+  Element rsi? : x86.r64  + 6
+  Element rdi? : x86.r64  + 7
+  Element x86.sreg
+  Element es? : x86.sreg  + 0
+  Element cs? : x86.sreg  + 1
+  Element ss? : x86.sreg  + 2
+  Element ds? : x86.sreg  + 3
+  Struc x86@@parseOperand               operand*
+    .type                               =                                       'invalid'
+    Match                               [ addr ],                               operand
+      .type                             =                                       'memory'
+      .size                             =                                       null
+      .address                          =                                       addr
+    Else Match                          length [ addr ],                        operand
+      .type                             =                                       'memory'
+      .size                             =                                       length
+      .address                          =                                       addr
+    Else Match                          sreg:offs,                              operand
+      .type                             =                                       'far away'
+      .size                             =                                       null
+    Else
+      If ( operand eq operand element 1 )
+        ;:operand                       = dx
+        ;:operand metadata 1            = x86.r16 + 2
+        ;:operand metadata 1 metadata 1 = x86.reg
+        ;:operand                       = es
+        ;:operand metadata 1            = x86.sreg + 0
+        If      (( operand metadata 1 ) relativeto x86.r8 )
+          .type                         =                                       'register'
+          .size                         =                                       byte
+          .register                     =                                       (( operand metadata 1 ) scale 0 )
+        Else If (( operand metadata 1 ) relativeto x86.r16 )
+          .type                         =                                       'register'
+          .size                         =                                       word
+          .register                     =                                       (( operand metadata 1 ) scale 0 )
+        Else If (( operand metadata 1 ) relativeto x86.sreg )
+          .type                         =                                       'segment register'
+          .register                     =                                       ( operand metadata scale 0 )
+        Else
+          fail 'x86@@parseOperand', 'invalid operand'
+        End If
+      Else
+        .type                           =                                       'immediat value'
+        .value                          =                                       operand
+        .size                           =                                       null
+      End If
+    End Match
+  End Struc
+  Macro x86@@opImmediat                 name,     base,                         dstSize,            srcValue,           dstRegister
+    If      (( dstSize = byte ) & ( srcValue >=   -128 ) & ( srcValue <=   256 ))
+      If ( dstRegister = x86@@regAX )
+        db base + 4
+      Else
+        db 0x80, ( 0xc0 or base or dstRegister )
+      End If
+      db srcValue
+    Else If (( dstSize = word ) & ( srcValue >=   -128 ) & ( srcValue <=   127 ))
+      db 0x83, ( 0xc0 or base or dstRegister )
+      db srcValue
+    Else If (( dstSize = word ) & ( srcValue >= -32768 ) & ( srcValue <= 65536 ))
+      If ( dstRegister = x86@@regAX )
+        db base + 5
+      Else
+        db 0x81, ( 0xc0 or base or dstRegister )
+      End If
+      dw srcValue
+    Else
+      fail `name, 'invalid immmediat operand size'
+    End If
+  End Macro
+  Macro x86@@opMemory                   name,     opMemory,           opRegister
+    Local theDisplacement, lenDisplacement, temp
+    If      (( elementsof opMemory ) = 0 )
+      ;> instr r1, [imm]
+      db (( opRegister shl 3 ) or 0x06 )
+      dw opMemory
+    Else
+      theDisplacement                   =                                       ( opMemory scale 0 )
+      If      ( theDisplacement = null )
+        lenDisplacement                 =                                       null
+      Else If (( theDisplacement >= -128 ) & ( theDisplacement <=   127 ))
+        lenDisplacement                 =                                       byte
+      Else If (( theDisplacement >=    0 ) & ( theDisplacement <= 65536 ))
+        lenDisplacement                 =                                       word
+      Else
+        fail `name, 'displacement must fit in a word'
+      End If
+      If      (( elementsof opMemory ) = 1 )
+        If      ((( opMemory metadata 1 ) scale 0 ) = x86@@regSI )
+          temp                          =                                       4
+        Else If ((( opMemory metadata 1 ) scale 0 ) = x86@@regDI )
+          temp                          =                                       5
+        Else If ((( opMemory metadata 1 ) scale 0 ) = x86@@regBP )
+          If ( lenDisplacement = null )
+            lenDisplacement             =                                       byte
+          End If
+          temp                          =                                       6
+        Else If ((( opMemory metadata 1 ) scale 0 ) = x86@@regBX )
+          temp                          =                                       7
+        End If
+      Else If (( elementsof opMemory ) = 2 )
+        If      (((( opMemory metadata 1 ) scale 0 ) = x86@@regSI ) | \
+                 ((( opMemory metadata 2 ) scale 0 ) = x86@@regSI ))
+          temp                          =                                       0
+        Else If (((( opMemory metadata 1 ) scale 0 ) = x86@@regDI ) | \
+                 ((( opMemory metadata 2 ) scale 0 ) = x86@@regDI ))
+          temp                          =                                       1
+        Else
+          fail `name, 'invalid combination of registers for address calculation'
+        End If
+        If      (((( opMemory metadata 1 ) scale 0 ) = x86@@regBP ) | \
+                 ((( opMemory metadata 2 ) scale 0 ) = x86@@regBP ))
+          temp                          =                                       temp + 2
+        Else If (((( opMemory metadata 1 ) scale 0 ) = x86@@regBX ) | \
+                 ((( opMemory metadata 2 ) scale 0 ) = x86@@regBX ))
+        Else
+          fail `name, 'invalid combination of registers for address calculation'
+        End If
+      Else
+        fail `name, 'address cannot be calculated with more than two registers'
+      End If
+      db (( lenDisplacement shl 6 ) or ( opRegister shl 3 ) or temp )
+      If      ( lenDisplacement = byte )
+        db theDisplacement
+      Else If ( lenDisplacement = word )
+        dw theDisplacement
+      End if
+    End If
+  End Macro
+  Irp                                   < name, base >, \
+                                        add,    0x00,   or,     0x08,   \
+                                        adc,    0x10,   sbb,    0x18,   \
+                                        and,    0x20,   sub,    0x28,   \
+                                        xor,    0x30,   cmp,    0x38
+    Macro name?                         dst*,                                   src*
+      Local size, srcOperand, dstOperand
+      srcOperand                        x86@@parseOperand                       src
+      dstOperand                        x86@@parseOperand                       dst
+      size                              =                                       ( srcOperand.size or dstOperand.size )
+      If      ( size = null )
+        fail `name, 'operand size not specified'
+      Else If (( size <> byte ) & ( size <> word ))
+        fail `name, 'operand sizes do not match'
+      Else
+        If ( size > word )
+          fail `name, 'invalid operand size'
+        End If
+        If      (( srcOperand.type = 'register' ) & ( dstOperand.type = 'register' ))
+          ;> instr  r1, r2
+          If      ( size = byte )
+            db base + 0
+          Else If ( size = word )
+            db base + 1
+          End If
+          db (( 0xc0 ) or ( srcOperand.register shl 3 ) or ( dstOperand.register ))
+        Else If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'immediat value' ))
+          ;> instr r1, imm
+          x86@@opImmediat               name,     base,               dstOperand.size,    srcOperand.value,   dstOperand.register
+        Else If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'memory' ))
+          ;> instr r1, [mem]
+          If      ( size = byte )
+            db ( base or x86@@toRegister or 0 )
+          Else If ( size = word )
+            db ( base or x86@@toRegister or 1 )
+          End If
+          x86@@opMemory                 name,     srcOperand.address, dstOperand.register
+        Else If (( dstOperand.type = 'memory' )   & ( srcOperand.type = 'register' ))
+          ;> instr [mem], r2
+          If      ( size = byte )
+            db ( base or x86@@toRegister or 0 )
+          Else If ( size = word )
+            db ( base or x86@@toRegister or 1 )
+          End If
+          x86@@opMemory                 name,     dstOperand.address, srcOperand.register
+        Else
+          fail `name, 'invalid compination of operands'
+        End If
+      End If
+    End Macro
+  End Irp
+  Irp                                   < name, base >,         \
+                                        not,    2, neg,     3,  \
+                                        mul,    4, imul,    5,  \
+                                        div,    6, idiv,    7
+    Macro name?                         operand
+      Local theOperand
+      theOperand                        x86@@parseOperand                       operand
+      If ( theOperand.size )
+        If      ( theOperand.size = byte )
+          db 0xf6
+        Else If ( theOperand.size = word )
+          db 0xf7
+        End If
+        If      ( theOperand.type = 'register' )
+          ;>  instr r1
+          db ( 0xc0 or ( base shl 3 ) or theOperand.register )
+        Else If ( theOperand.type = 'memory' )
+          ;>  instr [mem]
+          x86@@opMemory                 name,     theOperand.address, base
+        Else
+          fail `name, 'invalid operand'
+        End If
+      Else
+        fail `name, 'operand size not specified'
+      End If
+    End Macro
+  End Irp
+  Irp                                   < name, prefix >, \
+                                        repne,  0xf2, repnz,  0xf2, \
+                                        repe,   0xf3, repz,   0xf3, \
+                                        lock,   0xf0
+    Macro name?                         instr
+      db prefix
+      instr
+    End Macro
+  End Irp
+  Irp                                   < name, instr >, \
+                                        daa,    0x27, das,    0x2f, aaa,    0x37, aas,    0x3f, \
+                                        cbw,    0x98, cwd,    0x99, pushf,  0x9c, popf,   0x9d, \
+                                        sahf,   0x9e, lahf,   0x9f, movsb,  0xa4, movsw,  0xa5, \
+                                        cmpsb,  0xa6, cmpsw,  0xa7, stosb,  0xaa, stosw,  0xab, \
+                                        lodsb,  0xac, lodsw,  0xad, scasb,  0xae, scasw,  0xaf, \
+                                        int3,   0xcc, into,   0xce, iret,   0xcf, salc,   0xd6, \
+                                        xlat,   0xd7, wait,   0xdb, hlt,    0xf4, cmc,    0xf5, \
+                                        clc,    0xf8, stc,    0xf9, cli,    0xfa, sti,    0xfb, \
+                                        cld,    0xfc, std,    0xfd
+    Macro name?
+      db instr
+    End Macro
+    ;salc is an undocumented opcode.
+    ;< int3 could be polymorphic >
+  End Irp
+  Irp                                   < name, instr >,  \
+                                        aam,    0xd4, aad, 0xd5
+    Macro name?                         base:( 10 )
+      db instr, base
+    End Macro
+    ;aam and aad are documented without arguments and with an implied value of 10.
+  End Irp
+  Irp                                   < name, instr >,            \
+                                        jo,     0x70, \
+                                        jno,    0x71, \
+                                        jb,     0x72, jnae,   0x72, \
+                                        jnb,    0x73, jae,    0x73, \
+                                        je,     0x74, jz,     0x74, \
+                                        jne,    0x75, jnz,    0x75, \
+                                        jbe,    0x76, jna,    0x76, \
+                                        jnbe,   0x77, ja,     0x77, \
+                                        js,     0x78, \
+                                        jns,    0x79, \
+                                        jp,     0x7a, jpe,    0x7a, \
+                                        jnp,    0x7b, jpo,    0x7b, \
+                                        jl,     0x7c, jnge,   0x7c, \
+                                        jnl,    0x7d, jge,    0x7d, \
+                                        jle,    0x7e, jng,    0x7e, \
+                                        jnle,   0x7f, jg,     0x7f, \
+                                        loopnz, 0xe0, loopne, 0xe0, \
+                                        loopz,  0xe1, loope,  0xe1, \
+                                        loop,   0xe2, \
+                                        jcxz,   0xe3
+    Macro name?                         address*
+      Local theOperand, offset
+      theOperand                        x86@@parseOperand                       address
+      If ( theOperand.type = 'immediat value' )
+        offset                          =                                       ( theOperand.value - $ - 2 )
+        If (( offset >= -128 ) & ( offset <=   127 ))
+          db instr, offset
+        Else
+          fail `name, 'offset must fit in a byte'
+        End If
+      Else
+        fail `name, 'invalid operand'
+      End If
+    End Macro
+  End Irp
+  Macro nop?                            bytes:( 1 )
+    If      ( bytes = 1 )
+      xchg ax, ax
+    Else If ( bytes = 2 )
+      xchg al, al
+    Else
+      fail 'nop', 'not yet encodable'
+    End If
+  End Macro
+  Macro mov?                            dst*,                                   src*
+    Local size, srcOperand, dstOperand
+    srcOperand                          x86@@parseOperand                       src
+    dstOperand                          x86@@parseOperand                       dst
+    size                                =                                       ( srcOperand.size or dstOperand.size )
+    If      ( size = null )
+      fail `name, 'operand size not specified'
+    Else If (( size <> byte ) & ( size <> word ))
+      fail `name, 'operand sizes do not match'
+    Else If ( 0 )
+    End If
+  End Macro
+  Macro int?                            number*
+    db 0xcd, number
+  End Macro
+  Macro xchg?                           dst*,                                   src*
+      Local size, srcOperand, dstOperand
+      srcOperand                        x86@@parseOperand                       src
+      dstOperand                        x86@@parseOperand                       dst
+      size                              =                                       ( srcOperand.size or dstOperand.size )
+      If      ( size = null )
+        fail 'xchg', 'operand size not specified'
+      Else If (( size <> byte ) & ( size <> word ))
+        fail 'xchg', 'operand sizes do not match'
+      Else
+        If      (( dstOperand.type = 'register' ) & ( srcOperand.type = 'register' ))
+          If      (( srcOperand.register = x86@@regAX ) & ( size = word ))
+            db ( 0x90 or dstOperand.register )
+          Else If (( dstOperand.register = x86@@regAX ) & ( size = word ))
+            db ( 0x90 or srcOperand.register )
+          Else If ( size = byte )
+            db 0x86
+            ;< could be polymorphic >
+            db (( 0xc0 ) or ( srcOperand.register shl 3 ) or ( dstOperand.register ))
+          Else If ( size = word )
+            db 0x87
+            ;< could be polymorphic >
+            db (( 0xc0 ) or ( srcOperand.register shl 3 ) or ( dstOperand.register ))
+          End If
+        Else If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'memory' ))
+          ;> instr r1, [mem]
+          If      ( size = byte )
+            db 0x86
+          Else If ( size = word )
+            db 0x87
+          End If
+          x86@@opMemory                 'xchg',   srcOperand.address, dstOperand.register
+        Else If (( dstOperand.type = 'memory' )   & ( srcOperand.type = 'register' ))
+          ;> instr [mem], r2
+          If      ( size = byte )
+            db 0x86
+          Else If ( size = word )
+            db 0x87
+          End If
+          x86@@opMemory                 'xchg',   dstOperand.address, srcOperand.register
+        Else
+          fail 'xchg', 'invalid compination of operands'
+        End If
+      End If
+  End Macro
+  Macro in?                             value*,                                 port*
+    Local srcOperand, dstOperand
+    srcOperand                          x86@@parseOperand                       value
+    dstOperand                          x86@@parseOperand                       port
+    If      ( srcOperand.size = null )
+      fail 'in', 'operand size not specified'
+    Else If (( srcOperand.type <> 'register' ) & ( srcOperand.register <> x86@@regAX ))
+      fail 'in', 'source operand must be al/ax'
+    End If
+    If      ( dstOperand.type = 'immediat value' )
+      If      ( srcOperand.size = byte )
+        db 0xe4
+      Else If ( srcOperand.size = word )
+        db 0xe5
+      End If
+      db port
+    Else If ( dstOperand.type = 'register' )
+      If ( dstOperand.register = x86@@regDX )
+        If      ( srcOperand.size = byte )
+          db 0xec
+        Else If ( srcOperand.size = word )
+          db 0xed
+        End If
+      Else
+        fail 'in', 'invalid register for port'
+      End If
+    Else
+      fail 'in', 'invalid operand for port'
+    End If
+  End Macro
+  Macro out?                            port*,                                  value*
+    Local srcOperand, dstOperand
+    srcOperand                          x86@@parseOperand                       value
+    dstOperand                          x86@@parseOperand                       port
+    If      ( srcOperand.size = null )
+      fail 'out', 'operand size not specified'
+    Else If (( srcOperand.type <> 'register' ) & ( srcOperand.register <> x86@@regAX ))
+      fail 'out', 'source operand must be al/ax'
+    End If
+    If      ( dstOperand.type = 'immediat value' )
+      If      ( srcOperand.size = byte )
+        db 0xe6
+      Else If ( srcOperand.size = word )
+        db 0xe7
+      End If
+      db port
+    Else If ( dstOperand.type = 'register' )
+      If ( dstOperand.register = x86@@regDX )
+        If      ( srcOperand.size = byte )
+          db 0xee
+        Else If ( srcOperand.size = word )
+          db 0xef
+        End If
+      Else
+        fail 'out', 'invalid register for port'
+      End If
+    Else
+      fail 'out', 'invalid operand for port'
+    End If
+  End Macro
+  Macro elf@@codeFinaliser
+    Purge add?, or?, adc?, sbb?, and?, sub?, xor?, cmp?
+    Purge not?, neg?, mul?, imul?, div?, idiv?
+    Purge mov?
+    Purge in?, out?, xchg?, nop?, int?, aam?, aad?
+    Purge movsb?, movsw?, cmpsb?, cmpsw?, scasb?, scasw?, lodsb?, lodsw?, stosb?, stosw?
+    Purge daa?, das?, aaa?, aas?, cbw?, cwd?, pushf?, popf?, sahf?, lahf?, int3?, into?, iret?, xlat?, wait?, lock?, hlt?, cmc?, clc?, stc?, cli?, sti?, cld?, std?, salc?
+  End Macro
+End Macro
+;elf@@addCodeSpace                       8086,                                   x86@@code_8086
+
+x86@@code_8086
+  neg     al
+  neg     ax
+  neg     word [ si ]
+  neg     word [ si + 0x42 ]
+  neg     word [ si + 0x1337 ]
+  neg     word [ bx + di ]
+  neg     word [ bx + di + 0x42 ]
+  neg     word [ bx + di + 0x1337 ]
+  jo      $
+  jnz     $
+  jb      $
+  jnge    $
+  jp      $
+  xchg    ax, ax
+  xchg    bx, ax
+  xchg    dx, cx
+  xchg    al, al
+  in      ax, 123
+  in      ax, dx
+  in      al, 123
+  in      al, dx
+  out     123, ax
+  out     dx, ax
+  out     123, al
+  out     dx, al
+  iret
+elf@@codeFinaliser

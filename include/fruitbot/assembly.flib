@@ -1,0 +1,104 @@
+;( arguments )
+;{
+  ;:the ›machine‹ for the internal bytecode is a stack-machine and instructions are in a reverse polish notation.
+  ;:every argument must be pushed on the stack before other instructions can use them.
+  ;:the different types are just for of optimisation-reasons, because this is going to be the main-instruction.
+  ;:the stack-width for constant values is 8 byte (qword) and every value is signed extended.
+  ;:to distinguish between signed and unsigned values the is also a bit for sign.
+  ;:but as i said, values are sign-extended so a qword of 0xffffffffffffffff would be equal to (-1).
+  ;:to prevent that, the value can be inverted and a `not` can be added on compile-time.
+  Macro pushByte                        value*
+    fbc0@@instruction                   fbc0@@opPushByte
+    fbc0@@operantByte                   value
+  End Macro
+  Macro pushWord                        value*
+    fbc0@@instruction                   fbc0@@opPushWord
+    fbc0@@operantWord                   value
+  End Macro
+  Macro pushDWord                       value*
+    fbc0@@instruction                   fbc0@@opPushDWord
+    fbc0@@operantDWord                  value
+  End Macro
+  Macro pushQWord                       value*
+    fbc0@@instruction                   fbc0@@opPushQWord
+    fbc0@@operantQWord                  value
+  End Macro
+  Macro pushConstant                    value*
+    If      (( value >= -( 1 shl  7 )) & ( value < ( 1 shl  7 )))
+      pushByte                          value
+    Else If (( value >= -( 1 shl 15 )) & ( value < ( 1 shl 15 )))
+      pushWord                          value
+    Else If (( value >= -( 1 shl 31 )) & ( value < ( 1 shl 31 )))
+      pushDWord                         value
+    Else If ( value >= ( 1 shl 63 ))
+      pushQWord                         ( not value )
+      not
+    Else
+      pushQWord                         value
+    End If
+  End Macro
+;}
+Irp                                     < name,       value >,              \
+                                        add,          fbc0@@opAdd,          \
+                                        sub,          fbc0@@opSub,          \
+                                        mul,          fbc0@@opMul,          \
+                                        div,          fbc0@@opDiv,          \
+                                        mod,          fbc0@@opMod,          \
+                                        not,          fbc0@@opNot,          \
+                                        and,          fbc0@@opAnd,          \
+                                        or,           fbc0@@opOr,           \
+                                        xor,          fbc0@@opXor,          \
+                                        lnot,         fbc0@@opLogicalNot,   \
+                                        land,         fbc0@@opLogicalAnd,   \
+                                        lor,          fbc0@@opLogicalOr,    \
+                                        lxor,         fbc0@@opLogicalXor,   \
+                                        break,        fbc0@@opBreak,        \
+                                        done,         fbc0@@opDone,         \
+                                        letGlobal,    fbc0@@opLetGlobal,    \
+                                        letLocal,     fbc0@@opLetLocal,     \
+                                        getGlobal,    fbc0@@opGetGlobal,    \
+                                        getLocal,     fbc0@@opGetLocal,     \
+                                        stop,         fbc0@@opStop,         \
+                                        allocGlobal,  fbc0@@opAllocGlobal,  \
+                                        allocLocal,   fbc0@@opAllocLocal,   \
+                                        allocate,     fbc0@@opAllocate
+  Macro name                            ignore
+    fbc0@@instruction                   value
+  End Macro
+End Irp
+Irp                                     < name, value >,            \
+                                        when,   fbc0@@opWhen,       \
+                                        next,   fbc0@@opNext,       \
+                                        loop,   fbc0@@opLoop,       \
+                                        call,   fbc0@@opCall
+  Macro name                            address*
+    Local info
+    info                                yapters@@info
+    pushConstant                        ( address - info.offs )
+    fbc0@@instruction                   value
+  End Macro
+End Irp
+;( functions )
+;{
+  Macro fbc0@@function                  myName*,            lenFunction*,       returnType*,        numArguments*
+    Local temp
+    db                                  fbc0@@opFunction
+    stop                                                                        ;stops buggy parsers
+    dw                                  lenFunction                             ;size of function
+    dw                                  returnType                              ;type of return value
+    dw                                  numArguments                            ;number of arguments. it does not matter which type or size they have.
+    temp fbc0@@operantString            myName
+    dd                                  temp                                    ;name of function
+    dd                                  0xffffffff                              ;not used yet
+  End Macro
+;}
+
+Macro fbc0@@killMySelf
+  Purge pushByte, pushWord, pushDWord, pushQWord, pushConstant
+  Purge add, sub, mul, div, mod
+  Purge let, stop
+  Purge call, fbc0@@function
+  Purge allocGlobal, allocLocal, allocate
+  Purge when, next, loop, break, done
+End Macro
+

@@ -1,0 +1,48 @@
+Macro tinafs@@initFormat                ignore&
+  Local tinafs@@ctrFiles, tinafs@@numFiles
+  tinafs@@ctrFiles                      =                   null
+  ;( master boot record )
+  ;{
+    format@@newSpace
+      db 510 dup 0x90
+      db 0xaa, 0x55
+    format@@endSpace
+  ;}
+  Macro tinafs@@file                    fileName*
+    .tinafs@@offs                       =                   format@@offsOutput
+    displayOnNewLine 'offset: '
+    displayDecimal   .tinafs@@offs
+    displayOnNewLine 'length: '
+    displayDecimal   .tinafs@@size
+    displayOnNewLine 'dd if=build/test0 of=build/test0.', fileName, ' bs=1 skip='
+    displayDecimal   .tinafs@@offs
+    display          ' count='
+    displayDecimal   .tinafs@@size
+  End Macro
+  Struc file                            fileName*
+    Local temp
+    Repeat 1, temp:( tinafs@@ctrFiles )
+      tinafs@@lbl#temp:
+    End Repeat
+    displayOnNewLine '<file:', fileName, '>'
+    displayOnNewLine '{'
+    indentMore
+    tinafs@@file                        fileName
+    tinafs@@ctrFiles                    =                   ( tinafs@@ctrFiles + 1 )
+    Macro end?.file
+      .tinafs@@size                     =                   ( format@@offsOutput - .tinafs@@offs )
+      indentLess
+      displayOnNewLine '}'
+      Purge end.file
+    End Macro
+  End Struc
+  Macro file                            fileName*
+    Local void
+    void                                file                fileName
+  End Macro
+  Macro tinafs@@stopFormat
+    displayValue 'number of files: 0x', tinafs@@numFiles
+    tinafs@@numFiles                    =                   ( tinafs@@ctrFiles )
+  End Macro
+End Macro
+format@@addFormat                       tinafs,             tinafs@@initFormat, tinafs@@stopFormat

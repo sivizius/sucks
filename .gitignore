@@ -1,0 +1,8 @@
+*~
+*.swp
+*.save
+*.log
+*.uf4
+*.bin
+*build/*
+*include/temp/*

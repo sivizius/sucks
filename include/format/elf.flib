@@ -1,0 +1,330 @@
+elf@@typeRelocatable                    =                                       1
+elf@@typeExecutable                     =                                       2
+elf@@typeShared                         =                                       3
+elf@@typeCore                           =                                       4
+elf@@segmNull                           =                                       0x00
+elf@@segmLoad                           =                                       0x01
+elf@@segmDynamic                        =                                       0x02
+elf@@segmInterpreter                    =                                       0x03
+elf@@segmNote                           =                                       0x04
+elf@@segmSHLIB                          =                                       0x05
+elf@@segmProgramHeader                  =                                       0x06
+elf@@segmGNUehFrame                     =                                       0x6474e550
+elf@@segmGNUstack                       =                                       0x6474e551
+elf@@flagExecutable                     =                                       0x01
+elf@@flagWriteable                      =                                       0x02
+elf@@flagReadable                       =                                       0x04
+elf@@abiNone                            =                                       0x00
+elf@@abiSystemV                         =                                       0x00
+elf@@abiUnixGNU                         =                                       0x03
+;( code yapter )
+;{
+  Macro elf@@addCodeSpace               language*,                              function*
+    elf@@lstCode                        Equ                                     language function
+  End Macro
+;}
+Macro elf@@initFormat                   arguments&
+  Local temp
+  Local ptrEntry
+  Local lenElfHeader, elfType, elfMachine, ptrBase
+  Local ptrProgramHeaderTable, numProgramHeaderEntries, ctrProgramHeaderEntries, lenProgramHeaderEntry
+  Local ptrSectionHeaderTable, numSectionHeaderEntries, ctrSectionHeaderEntries, lenSectionHeaderEntry, theSectionNameIndex
+  Local haz64bit, hazEntry
+  Local killMySelf
+  Macro killMySelf
+  End Macro
+  ctrProgramHeaderEntries               =                                       0
+  ctrSectionHeaderEntries               =                                       0
+  haz64bit                              =                                       null
+  elfType                               =                                       null
+  elfMachine                            =                                       null
+  ptrBase                               =                                       0x400000
+  Irp                                   item,                                   arguments
+    Match                               ,                                       item
+    Else Match                          =relocatable,                           item
+      If ( elfType )
+        fail 'elf@@initFormat', 'already haz a type'
+      End If
+      elfType                           =                                       elf@@typeRelocatable
+    Else Match                          =executable,                            item
+      If ( elfType )
+        fail 'elf@@initFormat', 'already haz a type'
+      End If
+      elfType                           =                                       elf@@typeExecutable
+    Else Match                          =shared,                                item
+      If ( elfType )
+        fail 'elf@@initFormat', 'already haz a type'
+      End If
+      elfType                           =                                       elf@@typeShared
+    Else Match                          =core,                                  item
+      If ( elfType )
+        fail 'elf@@initFormat', 'already haz a type'
+      End If
+      elfType                           =                                       elf@@typeCore
+      fail 'elf@@initFormat', 'not implemented yet'
+    Else Match                          =x86,                                   item
+      If ( elfMachine )
+        fail 'elf@@initFormat', 'already haz a machine'
+      End If
+      elfMachine                        =                                       0x03
+    Else Match                          =amd64,                                 item
+      If ( elfMachine )
+        fail 'elf@@initFormat', 'already haz a machine'
+      End If
+      elfMachine                        =                                       0x3e
+      haz64bit                          =                                       1
+    Else Match                          =x64,                                   item
+      If ( elfMachine )
+        fail 'elf@@initFormat', 'already haz a machine'
+      End If
+      elfMachine                        =                                       0x3e
+      haz64bit                          =                                       1
+    Else Match                          =x86_64,                                item
+      If ( elfMachine )
+        fail 'elf@@initFormat', 'already haz a machine'
+      End If
+      elfMachine                        =                                       0x3e
+      haz64bit                          =                                       1
+    Else Match                          @ temp,                                 item
+      ptrBase                           =                                       temp
+    Else
+      fail 'elf@@initFormat', 'cannot parse this: »', `item, '«'
+    End Match
+  End Irp
+  If ( elfType = null )
+    fail 'elf@@initFormat', 'no type given'
+  End If
+  If ( elfMachine = null )
+    fail 'elf@@initFormat', 'no machine given'
+  End If
+  If ( haz64bit )
+    lenProgramHeaderEntry               =                                       0x38
+    lenSectionHeaderEntry               =                                       0x40
+  Else
+    lenProgramHeaderEntry               =                                       0x20
+    lenSectionHeaderEntry               =                                       0x28
+  End If
+  format@@newSpace
+    db 0x7f, 'ELF'                      ;magic
+    db 1 + haz64bit                     ;32/64 bit
+    db 1                                ;little endian
+    db 1                                ;elf-version 1
+    db elf@@abiUnixGNU                  ;os-abi
+    db null                             ;abi-version (idc)
+    rb 7                                ;padding
+    dw elfType
+    dw elfMachine
+    dd 1                                ;idky, but it is always 1
+    If (( elfType = elf@@typeExecutable ) | ( elfType = elf@@typeShared ))
+      Macro entry?                      address*
+        ptrEntry                        =                                       address
+        Purge entry?
+        Macro entry?                    ignorethis&
+          fail 'entry', 'ptrEntry already set'
+        End Macro
+      End Macro
+      Macro killMySelf
+        killMySelf
+        Purge entry?
+      End Macro
+    End If
+    If ( haz64bit )
+      If ( Defined ptrEntry )
+        dq ptrEntry
+      Else
+        fail 'elf@@initFormat', 'entry *address expected'
+      End If
+      dq ptrProgramHeaderTable.offs
+      dq ptrSectionHeaderTable.offs
+    Else
+      If ( Defined ptrEntry )
+        dd ptrEntry
+      Else
+        fail 'elf@@initFormat', 'entry *address expected'
+      End If
+      dd ptrProgramHeaderTable.offs
+      dd ptrSectionHeaderTable.offs
+    End If
+    dd 0                                ;e_flags
+    dw lenElfHeader
+    dw lenProgramHeaderEntry
+    dw numProgramHeaderEntries
+    dw lenSectionHeaderEntry
+    dw numSectionHeaderEntries
+    If ( Defined theSectionNameIndex )
+      dw theSectionNameIndex
+    Else
+      dw null
+    End If
+    lenElfHeader                        =                                       ( $ )
+  format@@endSpace
+  If (( elfType = elf@@typeExecutable ) | ( elfType = elf@@typeShared ))
+    Macro elf@@addSegment               type*,                        flags*,                                               \
+                                        offsFile:( null ),            addrVirtual:( null ),         addrPhysical:( null ),  \
+                                        lenFile:( null ),             lenMemory:( null ),           alignment:( null )
+      Local offs
+      offs                              =                                       ( ptrProgramHeaderTable + ctrProgramHeaderEntries * lenProgramHeaderEntry )
+      ctrProgramHeaderEntries           =                                       ( ctrProgramHeaderEntries + 1 )
+      Store                             dword type                              At format@@lblOutput:( offs + 0x00 )
+      If ( haz64bit )
+        Store                           dword flags                             At format@@lblOutput:( offs + 0x04 )
+        Store                           qword offsFile                          At format@@lblOutput:( offs + 0x08 )
+        Store                           qword addrVirtual                       At format@@lblOutput:( offs + 0x10 )
+        Store                           qword addrPhysical                      At format@@lblOutput:( offs + 0x18 )
+        Store                           qword lenFile                           At format@@lblOutput:( offs + 0x20 )
+        Store                           qword lenMemory                         At format@@lblOutput:( offs + 0x28 )
+        Store                           qword alignment                         At format@@lblOutput:( offs + 0x30 )
+      Else
+        Store                           dword offsFile                          At format@@lblOutput:( offs + 0x04 )
+        Store                           dword addrVirtual                       At format@@lblOutput:( offs + 0x08 )
+        Store                           dword addrPhysical                      At format@@lblOutput:( offs + 0x0c )
+        Store                           dword lenFile                           At format@@lblOutput:( offs + 0x10 )
+        Store                           dword lenMemory                         At format@@lblOutput:( offs + 0x14 )
+        Store                           dword flags                             At format@@lblOutput:( offs + 0x18 )
+        Store                           dword alignment                         At format@@lblOutput:( offs + 0x1c )
+      End If
+    End Macro
+    ;( code pseudo-yapter )
+    ;{
+    ;>  code language
+    ;>    ;some code
+    ;>  end code
+      Macro code                        language*,                              codeArguments&
+        Local foundLanguage, item, langCode, funcCode
+        foundLanguage                   =                                       false
+        Macro elf@@codeFinaliser
+        End Macro
+        Irpv                            item,                                   elf@@lstCode
+          Match                         langCode funcCode,                      item
+            If ( `langCode = `language )
+              displayOnNewLine '<code:', `langCode, '>'
+              displayOnNewLine '{'
+              indentMore
+              foundLanguage             =                                       true
+;              funcCode                  arguments
+              Match                     any,                                    codeArguments
+                funcCode                codeArguments
+              Else
+                funcCode
+              End Match
+            End If
+          Else
+            fail 'format→elf→code', 'cannot parse entry in list of code-spaces (u know, what i mean)'
+          End Match
+        End Irpv
+        If ( foundLanguage = false )
+          fail 'format→elf→code', 'unknown language »', `language, '«'
+        End If
+        Macro end?.code!
+          elf@@codeFinaliser
+          indentLess
+          displayOnNewLine '}'
+          Purge elf@@codeFinaliser
+          Purge end?.code
+        End Macro
+      End Macro
+    ;}
+    Macro segment?                      flags&
+      Local theType, theInterpreter, theFlags, ptrSegment, lenFile, lenMemory, theSegment
+      Local temp
+      theFlags                          =                                       null
+      theType                           =                                       elf@@segmLoad
+      displayOnNewLine '<segment:'
+      Irp                               flag,                                   flags
+        Match                           =readable?,                             flag
+          display 'R'
+          theFlags                      =                                       ( theFlags or elf@@flagReadable )
+        Else Match                      =writeable?,                            flag
+          display 'W'
+          theFlags                      =                                       ( theFlags or elf@@flagWriteable )
+        Else Match                      =executable?,                           flag
+          display 'X'
+          theFlags                      =                                       ( theFlags or elf@@flagExecutable )
+        Else Match                      =gnustack?,                             flag
+          display 'GNUstack'
+          If ( theType = elf@@segmLoad )
+            theType                     =                                       elf@@segmGNUstack
+          Else
+            fail 'segment', 'type already changed'
+          End If
+        Else Match                      =gnuehframe?,                           flag
+          display 'GNUehFrame'
+          If ( theType = elf@@segmLoad )
+            theType                     =                                       elf@@segmGNUehFrame
+          Else
+            fail 'segment', 'type already changed'
+          End If
+        Else Match                      =interpreter? name,                     flag
+          display 'Interpreter: »', name, '«'
+          theInterpreter                =                                       name
+          If ( theType = elf@@segmLoad )
+            theType                     =                                       elf@@segmInterpreter
+          Else
+            fail 'segment', 'type already changed'
+          End If
+        Else Match                      ,                                       flag
+        Else
+          fail 'segment', 'unimplemented flag »', `flag, '«'
+        End Match
+      End Irp
+      display '>'
+      If ( theType = elf@@segmLoad )
+        displayOnNewLine '{'
+        indentMore
+        Macro end?.segment
+          indentLess
+          displayOnNewLine '}'
+          Local temp
+          temp                          format@@endSpace
+          ptrSegment                    =                                       temp.offs
+          lenFile                       =                                       temp.size
+          lenMemory                     =                                       temp.resv
+        End Macro
+        temp                            =                                       ( ptrSegment + ptrBase )
+        ptrBase                         =                                       ( ptrBase + lenMemory - lenFile )
+        elf@@addSegment                 elf@@segmLoad,                theFlags,                                             \
+                                        ptrSegment,                   temp,                         temp,                   \
+                                        lenFile,                      lenMemory,                    4096
+        format@@newSpace                temp
+      Else If ( theType = elf@@segmGNUstack )
+        elf@@addSegment                 elf@@segmGNUstack,            theFlags
+      Else If ( theType = elf@@segmGNUehFrame )
+        elf@@addSegment                 elf@@segmGNUehFrame,          theFlags
+      Else If ( theType = elf@@segmInterpreter )
+        temp                            =                                       ( theSegment + ptrBase )
+        elf@@addSegment                 elf@@segmInterpreter,         theFlags,                                             \
+                                        theSegment.offs,              temp,                         temp,                   \
+                                        theSegment.size,              theSegment.size,              1
+        format@@newSpace
+          db theInterpreter, 0
+        theSegment                      format@@endSpace
+      End If
+    End Macro
+    Macro killMySelf
+      killMySelf
+      Purge segment?
+    End Macro
+    format@@newSpace
+      rb                                ( numProgramHeaderEntries * lenProgramHeaderEntry )
+      db ''
+    ptrProgramHeaderTable format@@endSpace
+  Else
+    ptrProgramHeaderTable.offs           =                                       null
+  End If
+  Macro elf@@stopFormat
+    If (( elfType = elf@@typeRelocatable ))
+      format@@newSpace
+        displayValue 'SectionHeaderTable 0x', ( numSectionHeaderEntries * lenSectionHeaderEntry )
+        rb                              ( numSectionHeaderEntries * lenSectionHeaderEntry )
+        db ''
+      ptrSectionHeaderTable format@@endSpace
+    Else
+      ptrSectionHeaderTable.offs        =                                       null
+    End If
+    killMySelf
+    numProgramHeaderEntries             =                                       ctrProgramHeaderEntries
+    numSectionHeaderEntries             =                                       ctrSectionHeaderEntries
+    Purge elf@@stopFormat
+  End Macro
+End Macro
+format@@addFormat                       elf,                elf@@initFormat,    elf@@stopFormat

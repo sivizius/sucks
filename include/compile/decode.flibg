@@ -1,0 +1,104 @@
+Macro compile@@decode
+;  Local numArguments, numStackArguments, numRegisterArguments, minErshov, maxErshov
+  Local instruction, temp
+  While ( true )
+    instruction                         readByte                                '[asm:compile:decode] invalid instruction-pointer'
+    Else If ( instruction = fbc0@@opFunction )
+      ;( only for debug )
+      ;{
+        displayNameOfFunction
+        display '()', 10
+        displayDeep '{', 10
+        goDeeper
+      ;}
+      skipData                          ( fbc0@@lenFunctionHeader - 1 )
+    Else If ( instruction = fbc0@@opLoop )
+      temp                              compile@@popArgument                    compile@@wantConstantArgument
+      displayDeep '#loop', 10
+      displayDeep '#{', 10
+      goDeeper
+      branch                            ( temp.value )
+    Else If ( instruction = fbc0@@opBreak )
+      displayDeep                       '#break', 10
+    Else If ( instruction = fbc0@@opDone )
+      goHigher
+      displayDeep '#}', 10
+      return
+    Else If ( instruction = fbc0@@opAllocLocal )
+      displayDeep '#allocLocal', 10
+    Else If ( instruction = fbc0@@opLet )
+      displayDeep '#let', 10
+    Else If ( instruction = fbc0@@opCall )
+      temp                              compile@@popArgument                    compile@@wantConstantArgument
+      callFunction                      =                                       temp.value
+      temp                              isFunction                              ( callFunction )
+      If ( temp = fbc0@@opFunction )
+        ;( only for debug )
+        ;{
+          displayDeep '#call '
+          displayNameOfFunction         ( callFunction )
+          display ' -> (0x'
+          displayHexWord                ( callFunction )
+          display ')', 10
+        ;}
+        appendFunction                  ( callFunction )
+        ;( get number of arguments )
+        ;{
+;          Load                          numArguments word                       From context:( ptrBase + callFunction + fbc0@@offFunctionNumArguments )
+;          If ( numArguments = 0xffff )  ;first constant value in stack is the number of arguments
+;            numArguments                compile@@popArgument                    compile@@wantConstantArgument
+;          End If
+;          If ( numArguments > compile@@numOfArgsInRegs )
+;            numRegisterArguments        =                                       compile@@numOfArgsInRegs
+;            numStackArguments           =                                       ( numArguments - compile@@numOfArgsInRegs )
+;          Else
+;            numRegisterArguments        =                                       numArguments
+;            numStackArguments           =                                       null
+;          End If
+        ;}
+        ;( pop stack-arguments )
+        ;{
+;          Repeat ( numStackArguments )
+;            temp                        compile@@popArgument
+;            ;
+;          End Repeat
+        ;}
+        ;( pop register-arguments )
+        ;{
+          ;( pop arguments )
+          ;{
+;            ptrArguments                =                                       null
+;            minErshov                   =                                       null
+;            maxErshov                   =                                       null
+;            Repeat ( numRegisterArguments )
+;              temp                      compile@@popArgument
+;              Store                     byte  temp.type                         At lblArguments:( ptrArguments + 0x00 )
+;              Store                     word  temp.ershov                       At lblArguments:( ptrArguments + 0x02 )
+;              Store                     qword temp.value                        At lblArguments:( ptrArguments + 0x08 )
+;              If      ( minErshov < temp.ershov )
+;                minErhov                =                                       temp.ershov
+;                maxErshov               =                                       temp.ershov
+;              Else If ( minErshov = temp.ershov )
+;                maxErshov               =                                       ( temp.ershov + 1 )
+;              End If
+;              ptrArguments              =                                       ( ptrArguments + 1 )
+;            End Repeat
+          ;}
+          ;( enque arguments )
+          ;{
+          ;}
+        ;}
+      Else
+        fail '[asm:compile] this type of call is not implemented yet'
+      End If
+    Else If ( instruction = fbc0@@opStop )
+      goHigher
+      displayDeep '}', 10
+      Break
+    Else
+      temp                              fbc0@@mnemonic                          instruction
+      displayValue 'instruction: 0x', instruction
+      fail < '[asm:compile] invalid instruction: »', temp, '«' >
+    End If
+  End While
+End Macro

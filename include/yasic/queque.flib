@@ -1,0 +1,32 @@
+Macro yasic@@enque                      type*,              value*,             size:( null ),      misc:( null )
+  ;display 'enque', 10
+  ;displayValue '  type  0x', type
+  ;displayValue '  misc  0x', misc
+  ;displayValue '  size  0x', size
+  ;displayValue '  value 0x', value
+  ;displayValue '  *ptr  0x', yasic@@endQueque
+  If ( yasic@@endQueque >= yasic@@lenQueque )
+    fail '[asm:yasic] queque to small. adjust yasic@@lenQueque'
+  End If
+  Store                                 word  type                              At yasic@@lblQueque:( yasic@@endQueque + 0x00 )
+  Store                                 word  misc                              At yasic@@lblQueque:( yasic@@endQueque + 0x02 )
+  Store                                 dword size                              At yasic@@lblQueque:( yasic@@endQueque + 0x04 )
+  Store                                 qword value                             At yasic@@lblQueque:( yasic@@endQueque + 0x08 )
+  yasic@@endQueque                      =                                       ( yasic@@endQueque + 16 )
+End Macro
+Struc yasic@@deque
+  If ( yasic@@ptrQueque >= yasic@@endQueque )
+    fail '[asm:yasic] queque is empty'
+  End If
+  Local type, misc, size, value
+  Load                                  type  word                              From yasic@@lblQueque:( yasic@@ptrQueque + 0x00 )
+  Load                                  misc  word                              From yasic@@lblQueque:( yasic@@ptrQueque + 0x02 )
+  Load                                  size  dword                             From yasic@@lblQueque:( yasic@@ptrQueque + 0x04 )
+  Load                                  value qword                             From yasic@@lblQueque:( yasic@@ptrQueque + 0x08 )
+  .type                                 =                                       type
+  .misc                                 =                                       misc
+  .size                                 =                                       size
+  .value                                =                                       value
+  yasic@@ptrQueque                      =                                       ( yasic@@ptrQueque + 16 )
+End Struc
+

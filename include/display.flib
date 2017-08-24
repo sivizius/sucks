@@ -1,0 +1,93 @@
+display@@indentLevel                    =                                       0
+display@@indentSpace                    =                                       2
+Macro displayOnNewLine                  message&
+  display 10
+  If ( display@@indentSpace < 0 )
+    Repeat ( display@@indentLevel )
+      display 9
+    End Repeat
+  Else
+    Repeat ( display@@indentLevel * display@@indentSpace )
+      display ' '
+    End Repeat
+  End If
+  display message
+End Macro
+Macro indentLess
+  If ( display@@indentLevel > 0 )
+    display@@indentLevel                =                                       ( display@@indentLevel - 1 )
+  Else
+    fail 'indentLess', 'already on indentation-level zero'
+  End If
+End Macro
+Macro indentMore
+  display@@indentLevel                  =                                       ( display@@indentLevel + 1 )
+End Macro
+Macro displayHexQWord                   value*
+  Local                                 char
+  Repeat 16
+    char                                =                                       ( '0' + ((( value ) shr ( 64 - ( % * 4 ))) and 0x0f ))
+    If ( char > '9' )
+      char                              =                                       ( char + 'a' - '9' - 1 )
+    End If
+    display                             char
+  End Repeat
+End Macro
+Macro displayHexDWord                   value*
+  Local                                 char
+  Repeat 8
+    char                                =                                       ( '0' + ((( value ) shr ( 32 - ( % * 4 ))) and 0x0f ))
+    If ( char > '9' )
+      char                              =                                       ( char + 'a' - '9' - 1 )
+    End If
+    display                             char
+  End Repeat
+End Macro
+Macro displayHexWord                    value*
+  Local                                 char
+  Repeat 4
+    char                                =                                       ( '0' + ((( value ) shr ( 16 - ( % * 4 ))) and 0x0f ))
+    If ( char > '9' )
+      char                              =                                       ( char + 'a' - '9' - 1 )
+    End If
+    display                             char
+  End Repeat
+End Macro
+Macro displayHexByte                    value*
+  Local                                 char
+  Repeat 2
+    char                                =                                       ( '0' + ((( value ) shr (  8 - ( % * 4 ))) and 0x0f ))
+    If ( char > '9' )
+      char                              =                                       ( char + 'a' - '9' - 1 )
+    End If
+    display                             char
+  End Repeat
+End Macro
+Macro displayValue                      string*,                                value*
+  displayValueQWord                     string,                                 value
+End Macro
+
+Macro displayValueByte                  string*,                                value*
+  displayOnNewLine string
+  displayHexByte value
+End Macro
+Macro displayValueWord                  string*,                                value*
+  displayOnNewLine string
+  displayHexWord value
+End Macro
+
+Macro displayValueDWord                 string*,                                value*
+  displayOnNewLine string
+  displayHexDWord value
+End Macro
+
+Macro displayValueQWord                 string*,                                value*
+  displayOnNewLine string
+  displayHexQWord value
+End Macro
+
+Macro displayDecimal                    value*
+  Repeat 1, temp:( value )
+    display `temp
+  End Repeat
+End Macro

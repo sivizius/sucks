@@ -1,0 +1,267 @@
+Include 'include/compile/arguments.flib'
+Include 'include/compile/calls.flib'
+;Include 'include/compile/decode.flibg'
+;Include 'include/compile/compile.flibg'
+
+functions@@offsCode                     =                                       0x00
+functions@@sizeCode                     =                                       0x08
+functions@@offsFunc                     =                                       0x10
+functions@@offsPointer                  =                                       0x18
+functions@@offsStrings                  =                                       0x20
+functions@@sizeStrings                  =                                       0x28
+functions@@addrCompiled                 =                                       0x30
+functions@@lenStructure                 =                                       0x38
+
+Macro compile@@code                     ignore&
+  Local lblFunctions, ctrFunctions, numFunctions
+  Local operator, compile@@parseFunction, compile@@addFunction
+  ;( handle functions )
+  ;{
+    Virtual                             At null
+      lblFunctions::
+        rb ( functions@@lenStructure * numFunctions )
+    End Virtual
+    ctrFunctions                        =                                       null
+    Struc compile@@addFunction          ptrCode*,                     lenCode*,                     ptrFunc*, \
+                                        ptrStrings:( null ),          lenStrings:( null )
+      Local hazFunction, offsCode, offsFunc, addrCompiled
+      hazFunction                       =                                       nil
+      Repeat                            ctrFunctions,                           count:( null )
+        Load                            offsCode qword                          From lblFunctions:( functions@@lenStructure * count + functions@@offsCode )
+        Load                            offsFunc qword                          From lblFunctions:( functions@@lenStructure * count + functions@@offsFunc )
+        If ( offsCode + offsFunc = ptrCode + ptrFunc )
+          hazFunction                   =                                       ( count )
+          Break
+        End If
+      End Repeat
+      If ( hazFunction = nil )
+        displayValue 'add function *0x', ( ptrCode + ptrFunc )
+        Store                           qword ptrCode                           At lblFunctions:( functions@@lenStructure * ctrFunctions + functions@@offsCode )
+        Store                           qword lenCode                           At lblFunctions:( functions@@lenStructure * ctrFunctions + functions@@sizeCode )
+        Store                           qword ptrFunc                           At lblFunctions:( functions@@lenStructure * ctrFunctions + functions@@offsFunc )
+        Store                           qword ptrStrings                        At lblFunctions:( functions@@lenStructure * ctrFunctions + functions@@offsStrings )
+        Store                           qword lenStrings                        At lblFunctions:( functions@@lenStructure * ctrFunctions + functions@@sizeStrings )
+        Store                           qword nil                               At lblFunctions:( functions@@lenStructure * ctrFunctions + functions@@addrCompiled )
+        .                               =                                       ctrFunctions
+        ctrFunctions                    =                                       ( ctrFunctions + 1 )
+      Else
+        displayValue 'haz function *0x', ( offsCode + offsFunc )
+        Load                            addrCompiled qword                      From lblFunctions:( functions@@lenStructure * hazFunction + functions@@addrCompiled )
+        .                               =                                       hazFunction
+      End If
+    End Struc
+    Macro compile@@addFunction          ptrCode*,                     lenCode*,                     ptrFunc*, \
+                                        ptrStrings:( null ),          lenStrings:( null )
+      Local void
+      void compile@@addFunction         ptrCode,            lenCode,            ptrFunc,  \
+                                        ptrStrings,         lenStrings
+    End Macro
+  ;}
+  ;( pure functional instructions with two arguments, e.g. `add a, b` )
+  ;{
+    Macro operator                      name*,                                  value*
+      If ( compile@@ptrStack < 32 )
+        fail < '[asm:compile] ', name, ' need 2 arguments in stack' >
+      End If
+      displayOnNewLine '#', name
+      compile@@push                     fbc0@@tOperator,                        ( value )
+    End Macro
+  ;}
+  ;( compile functions )
+  ;{
+    Struc compile@@parseFunction        theFunction:( null ),                   caller:( nil )
+      Local temp, offs, size, char, ctrArguments
+      Local pointer, instruction
+      Local lblCode, lblStrings
+      Local ptrCode, lenCode, ptrFunc, ptrStrings, lenStrings, ptrCompiled
+      lblCode                           Equ                                     format@@lblOutput
+      lblStrings                        Equ                                     format@@lblOutput
+      If ( theFunction >= ctrFunctions )
+        fail 'compile@@parseFunction', 'invalid function'
+      End If
+      Load                              ptrCode     qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@offsCode )
+      Load                              lenCode     qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@sizeCode )
+      Load                              ptrFunc     qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@offsFunc )
+      Load                              ptrStrings  qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@offsStrings )
+      Load                              lenStrings  qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@sizeStrings )
+      Load                              ptrCompiled qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@addrCompiled )
+      displayOnNewLine 'parse function 0x'
+      displayHexQWord ptrCode
+      display     ' - 0x'
+      displayHexQWord lenCode
+      display     ' - 0x'
+      displayHexQWord ptrFunc
+      displayOnNewLine '               0x'
+      displayHexQWord ptrStrings
+      display     ' - 0x'
+      displayHexQWord lenStrings
+      display     ' - 0x'
+      displayHexQWord ptrCompiled
+      If ( ptrCompiled = nil )
+        displayOnNewLine '{'
+        indentMore
+        format@@newSpace
+          temp                          =                                       null
+          pointer                       =                                       ptrFunc
+          While ( pointer < lenCode )
+            Load                        instruction byte                        From lblCode:( ptrCode + pointer )
+            ;displayOnNewLine 'instruction: 0x'
+            ;displayHexByte instruction
+            pointer                     =                                       ( pointer + 1 )
+            If ( instruction = fbc0@@opFunction )
+              displayOnNewLine 'function '
+              Load                      offs dword                              From lblCode:( ptrCode + pointer + fbc0@@offFunctionMyName - 1 )
+              pointer                   =                                       ( pointer + fbc0@@lenFunctionHeader - 1 )
+              If (( offs < 2 ) | (( lenStrings - offs ) < 0 ))
+                fail 'fbc0@@disassemble', 'pointer out of bonds'
+              Else
+                Load                    size word                               From lblStrings:( ptrStrings + offs - 2 )
+                If (( lenStrings - offs ) < size )
+                  fail 'fbc0@@disassemble', 'corrupted string'
+                End If
+                Load                    char size                               From lblStrings:( ptrStrings + offs )
+                display char
+              End If
+              display '()'
+              displayOnNewLine '{'
+              indentMore
+            End If
+            If false
+            Else If ( instruction = fbc0@@opPushByte )
+              Load                      temp byte                               From lblCode:( ptrCode + pointer )
+              compile@@push             fbc0@@tConstant,                        ((( temp and 0x00000080 ) * 0xffffffffffffff00 ) or temp )
+              ;displayValue 'pushByte 0x', temp
+              pointer                   =                                       ( pointer + 1 )
+            Else If ( instruction = fbc0@@opPushWord )
+              Load                      temp word                               From lblCode:( ptrCode + pointer )
+              compile@@push             fbc0@@tConstant,                        ((( temp and 0x00008000 ) * 0xffffffffffff0000 ) or temp )
+              ;displayValue 'pushWord 0x', temp
+              pointer                   =                                       ( pointer + 2 )
+            Else If ( instruction = fbc0@@opPushDWord )
+              Load                      temp dword                              From lblCode:( ptrCode + pointer )
+              compile@@push             fbc0@@tConstant,                        ((( temp and 0x80000000 ) * 0xffffffff00000000 ) or temp )
+              ;displayValue 'pushDWord 0x', temp
+              pointer                   =                                       ( pointer + 4 )
+            Else If ( instruction = fbc0@@opPushQWord )
+              Load                      temp qword                              From lblCode:( ptrCode + pointer )
+              compile@@push             fbc0@@tConstant,                        ( temp )
+              ;displayValue 'pushQWord 0x', temp
+              pointer                   =                                       ( pointer + 8 )
+            Else If ( instruction = fbc0@@opAdd )
+              operator                  'add',                                  instruction
+            Else If ( instruction = fbc0@@opSub )
+              operator                  'sub',                                  instruction
+            Else If ( instruction = fbc0@@opMul )
+              operator                  'mul',                                  instruction
+            Else If ( instruction = fbc0@@opDiv )
+              operator                  'div',                                  instruction
+            Else If ( instruction = fbc0@@opMod )
+              operator                  'mod',                                  instruction
+            Else If ( instruction = fbc0@@opNot )
+              operator                  'not',                                  instruction
+            Else If ( instruction = fbc0@@opAnd )
+              operator                  'and',                                  instruction
+            Else If ( instruction = fbc0@@opOr )
+              operator                  'or',                                   instruction
+            Else If ( instruction = fbc0@@opXor )
+              operator                  'xor',                                  instruction
+            Else If ( instruction = fbc0@@opLogicalNot )
+              operator                  'lnot',                                 instruction
+            Else If ( instruction = fbc0@@opLogicalAnd )
+              operator                  'land',                                 instruction
+            Else If ( instruction = fbc0@@opLogicalOr )
+              operator                  'lor',                                  instruction
+            Else If ( instruction = fbc0@@opLogicalXor )
+              operator                  'lxor',                                 instruction
+            Else If ( instruction = fbc0@@opLetGlobal )
+            Else If ( instruction = fbc0@@opLetLocal )
+            Else If ( instruction = fbc0@@opGetGlobal )
+            Else If ( instruction = fbc0@@opGetLocal )
+            Else If ( instruction = fbc0@@opStop )
+              indentLess
+              displayOnNewLine '}'
+              Break
+            Else If ( instruction = fbc0@@opCall )
+              Store                     qword ptrFunc                           At lblFunctions:( functions@@lenStructure * theFunction + functions@@offsFunc )
+              Store                     qword pointer                           At lblFunctions:( functions@@lenStructure * theFunction + functions@@offsPointer )
+              ;( get address, add function, parse function )
+              ;{
+                temp                    compile@@popArgument                    compile@@wantConstantArgument
+                temp                    compile@@addFunction                                \
+                                        ptrCode,            lenCode,            temp.value, \
+                                        ptrStrings,         lenStrings
+                temp                    compile@@parseFunction                  \
+                                        temp,               theFunction
+              ;}
+              Load                      ptrFunc     qword                       From lblFunctions:( functions@@lenStructure * temp.call + functions@@offsFunc )
+              Load                      pointer     qword                       From lblFunctions:( functions@@lenStructure * temp.call + functions@@offsPointer )
+              displayValue 'call *0x', temp.value
+              Load                      ctrArguments word                       From lblCode:( ptrCode + temp.value + fbc0@@offFunctionNumArguments )
+              displayOnNewLine 'ctrArguments '
+              displayDecimal ctrArguments
+            Else If ( instruction = fbc0@@opFunction )
+            Else If ( instruction = fbc0@@opAllocGlobal )
+            Else If ( instruction = fbc0@@opAllocLocal )
+            Else If ( instruction = fbc0@@opAllocate )
+            Else If ( instruction = fbc0@@opWhen )
+            Else If ( instruction = fbc0@@opNext )
+            Else If ( instruction = fbc0@@opLoop )
+            Else If ( instruction = fbc0@@opBreak )
+            Else If ( instruction = fbc0@@opDone )
+            Else
+            End If
+          End While
+          db 0x13, 0x37
+        ptrCompiled                     format@@endSpace
+        displayValue 'ptrCompiled      0x', ptrCompiled
+        displayValue 'ptrCompiled.offs 0x', ptrCompiled.offs
+        Store                           qword ptrCompiled.offs                  At lblFunctions:( functions@@lenStructure * theFunction + functions@@addrCompiled )
+        indentLess
+        displayOnNewLine '}'
+        .                               =                                       ptrCompiled.offs
+      Else
+        .                               =                                       ptrCompiled
+      End If
+      .call                             =                                       caller
+    End Struc
+  ;}
+  ;( parse yapters )
+  ;{
+    Macro parseYapterTable              ptrTable*,                              numYapters*
+      Local bytecode, strings
+      displayValue 'parse yapter-table at 0x', ptrTable
+      offs                              =                                       ( ptrTable + numYapters * yapters@@lenOfOneYapter )
+      Repeat                            numYapters,                             ctrYapters:( null )
+        bytecode                        yapters@@get                            ptrTable,           ctrYapters
+        If ( bytecode.type = yapters@@tBytecode & bytecode.word = 0xc0fb )
+          strings                       yapters@@get                            ptrTable,           bytecode.dword
+          If ( strings.type = yapters@@tStrings )
+            compile@@addFunction        ( offs + bytecode.qword2 ),   bytecode.qword1,    bytecode.qword0, \
+                                        ( offs + strings.qword2  ),   strings.qword1
+          Else
+            fail '...', 'yapter is not of type ›strings‹'
+          End If
+        End If
+      End Repeat
+    End Macro
+  ;}
+  Macro yapters@@codeFinaliser
+    Local theYapter, theMain
+    yapters@@newYapter                  yapters@@tBytecode,                     'am',               'd 64', \
+                                        ( theMain - theYapter.offs ),           theYapter.size,     theYapter.base
+      theMain                           compile@@parseFunction
+    theYapter                           yapters@@endYapter
+    Purge parseYapterTable, yapters@@codeFinaliser
+    numFunctions                        =                                       ( ctrFunctions )
+  End Macro
+  Macro elf@@codeFinaliser
+    Local theYapter, theMain
+    segment                             executable, readable
+      theMain                           compile@@parseFunction
+    end segment
+    Purge parseYapterTable, elf@@codeFinaliser
+    numFunctions                        =                                       ( ctrFunctions )
+  End Macro
+End Macro
+yapters@@addCodeSpace                   compile,                                compile@@code
+elf@@addCodeSpace                       compile,                                compile@@code

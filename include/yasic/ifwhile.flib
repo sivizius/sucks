@@ -1,0 +1,100 @@
+yasic@@ifWhileState                     Equ                                     ''
+Macro if                                whenExpression&
+  yasic@@ifWhileState                   Equ                                     'if'
+  pushExpression                        whenExpression
+  format@@newSpace
+End Macro
+Macro elif                              elseExpression&
+  Local theSpace
+  Match                                 'if',                                   yasic@@ifWhileState
+    done
+    theSpace format@@endSpace
+    when                                ( theSpace.offs )
+    pushExpression                      elseExpression
+    format@@newSpace
+  Else
+    fail 'elif', 'unexpected »elif«'
+  End Match
+End Macro
+Macro else
+  Local theSpace
+  Match                                 'if',                                   yasic@@ifWhileState
+    done
+    theSpace format@@endSpace
+    when                                ( theSpace.offs )
+    pushConstant                        ( 1 )
+    format@@newSpace
+  Else
+    fail 'else', 'unexpected »else«'
+  End Match
+  Restore                               yasic@@ifWhileState
+  yasic@@ifWhileState                   Equ                                     'else'
+End Macro
+Macro end.if
+  Local theSpace
+  Match                                 'if',                                   yasic@@ifWhileState
+    done
+    theSpace format@@endSpace
+    next                                ( theSpace.offs )
+  Else Match                            'else',                                 yasic@@ifWhileState
+    done
+    theSpace format@@endSpace
+    next                                ( theSpace.offs )
+  Else
+    fail 'end.if', 'unexpected »end if«'
+  End Match
+  Restore                               yasic@@ifWhileState
+End Macro
+Macro while                             expression&
+  yasic@@ifWhileState                   Equ                                     'while'
+  format@@newSpace
+  pushExpression                        expression
+  lnot
+  break
+End Macro
+Macro end.while
+  Local theSpace
+  Match                                 'while',                                yasic@@ifWhileState
+    done
+    theSpace format@@endSpace
+    loop                                ( theSpace.offs )
+  Else
+    fail 'end.while', 'unexpected »end while«'
+  End Match
+  Restore                               yasic@@ifWhileState
+End Macro
+
+Macro try
+  yasic@@ifWhileState                   Equ                                     'try'
+End Macro
+Macro catch                             error
+  Match                                 'try',                                  yasic@@ifWhileState
+    ;<...>
+  Else
+    fail 'catch', 'unexpected »catch«'
+  End Match
+End Macro
+Macro finally
+  Match                                 'try',                                  yasic@@ifWhileState
+    ;<...>
+  Else
+    fail 'finally', 'unexpected »finally«'
+  End Match
+  Restore                               yasic@@ifWhileState
+  yasic@@ifWhileState                   Equ                                     'finally'
+End Macro
+Macro end.try
+  Match                                 'try',                                  yasic@@ifWhileState
+    ;<...>
+  Else Match                            'finally',                              yasic@@ifWhileState
+    ;<...>
+  Else
+    fail 'end.try', '[asm:yasic:ifwhile] unexpected »end try«'
+  End Match
+  Restore                               yasic@@ifWhileState
+End Macro
+Macro yasic@@killMySelf
+  Purge if, elif, else, end.if
+  Purge while, end.while
+  Purge try, catch, finally, end.try
+End Macro

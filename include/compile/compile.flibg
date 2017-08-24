@@ -1,0 +1,231 @@
+Macro compile@@compile                  numOfArgsInRegs:( null ),     \
+                                        numOfRegularRegs:( null ),    \
+                                        hazCalcWithVars:( false ),    \
+                                        hazCalcWithConst:( false )
+  ;( reset some pointers and values )
+  ;{
+    compile@@ptrStringYapter            =                                       null
+    compile@@lenStringYapter            =                                       null
+    compile@@lenMagic                   =                                       null
+    compile@@ptrCallStack               =                                       null
+    compile@@ptrStack                   =                                       null
+    compile@@topStack                   =                                       null
+    compile@@ptrTree                    =                                       null
+    compile@@ptrQueque                  =                                       null
+    compile@@endQueque                  =                                       null
+  ;}
+  compile@@numOfArgsInRegs              =                                       ( numOfArgsInRegs )                     ;number of arguments passed via register, the rest via stack
+  compile@@numOfRegularRegs             =                                       ( numOfRegularRegs )                    ;number of general purpose register
+  compile@@hazCalcWithConst             =                                       ( hazCalcWithConst )                    ;is `add r1, 0x13372342` allowed?
+  compile@@hazCalcWithVars              =                                       ( hazCalcWithVars )                     ;is `add r1, byte [ a ]` allowed?
+  ;( handling functions )
+  ;{
+    Local lblFunctions, theFunctions, ctrFunctions, numFunctions, sizeFunctions
+    ctrFunctions                        =                                       null
+    theFunctions                        =                                       null
+    sizeFunctions                       =                                       ( 24 )
+    Virtual                             At null
+      lblFunctions::
+        RB                              ( numFunctions * sizeFunctions )
+        ;:  0x00  qword fbc-address
+        ;:  0x08  qword base of reading frame
+        ;:  0x10  qword end  of reading frame
+    End Virtual
+    Local ptrBase, ptrStop, ptrFunc
+    Macro setReadingFrame               address*,                               size*
+      ptrBase                           =                                       ( address )
+      ptrStop                           =                                       ( address + size )
+    End Macro
+    Macro appendFunction                address*
+      displayValue 'addFunction: 0x', address
+      Local hazFunction, temp, offs
+      hazFunction                       =                                       nil
+      Repeat ( ctrFunctions ), offs:( null )
+        temp                            getFunction                             offs
+        If ( temp = address )
+          hazFunction                   =                                       ctrFunction
+          Break
+        End If
+      End Repeat
+      If ( hazFunction = nil )
+        Store                           qword address                           At lblFunctions:(( ctrFunctions * sizeFunctions ) + 0x00 )
+        Store                           qword ptrBase                           At lblFunctions:(( ctrFunctions * sizeFunctions ) + 0x08 )
+        Store                           qword ptrStop                           At lblFunctions:(( ctrFunctions * sizeFunctions ) + 0x10 )
+        ctrFunctions                    =                                       ( ctrFunctions + 1 )
+      End If
+    End Macro
+    Struc isFunction                    address*
+      Local temp
+      Load                              temp byte                               From lblInputFile:( ptrBase + address + fbc0@@offFunctionInstruction )
+      .                                 =                                       temp
+    End Struc
+    Macro displayNameOfFunction         address
+      Local temp, length, char
+      Match any, address
+        temp                            =                                       ( ptrBase + address )
+      Else
+        temp                            =                                       ( ptrFunc - 1 )
+      End Match
+      Load                              temp dword                              From lblInputFile:( temp + fbc0@@offFunctionMyName )
+      If      ( compile@@ptrStringYapter = null )
+        fail '[asm:compile] there is no string-yapter'
+      Else If (( temp < 2 ) | (( compile@@lenStringYapter - temp ) < 0 )
+        fail '[asm:compile] pointer out of bonds'
+      Else
+        Load                            length word                             From lblInputFile:( compile@@ptrStringYapter + temp - 2 )
+        If (( compile@@lenStringYapter - temp ) < length )
+          fail '[asm:compile] corrupted string'
+        End If
+        displayDeep ''
+        Repeat                          ( length )
+          Load                          char byte                               From lblInputFile:( compile@@ptrStringYapter + temp + % - 1 )
+          display char
+        End Repeat
+      End If
+    End Macro
+  ;}
+  ;( register-arguments )
+  ;{
+    Local lblArguments, sizeArguments, ptrArguments
+    sizeArguments                       =                                       ( 16 )
+    ptrArguments                        =                                       null
+    Virtual                             At null
+      lblArguments::
+        RB                              ( sizeArguments * compile@@numOfArgsInRegs )
+        ;:  0x00  byte  type
+        ;:  0x02  word  ershov
+        ;:  0x08  qword value
+    End Virtual
+  ;}
+  ;( register-allocation )
+  ;{
+    Local lblRegularRegister
+    Virtual                             At null
+      lblRegularRegister::
+        RB                              compile@@numOfRegularRegs
+    End Virtual
+    Macro free                          register*
+      If (( register >= 0 ) & ( register < compile@@numOfRegularRegs ))
+        Store                           byte  null                              At    lblRegularRegister:( register )
+      End If
+    End Macro
+    Struc allocRegister
+      Local temp
+      Repeat ( compile@@numOfRegularRegs )
+        Load                            temp  byte                              From  lblRegularRegister:( % - 1 )
+        If ( temp = 0x00 )
+          .                             =                                       ( % - 1 )
+          Break
+        End If
+      End Repeat
+      .                                 =                                       nil
+    End Struc
+  ;}
+  ;( map fbc-address -> real address )
+  ;{
+;    Local lblJumps, ctrJumps, numJumps, sizeJumps
+;    ctrJumps                            =                                       null
+;    sizeJumps                           =                                       ( 8 )
+;    Virtual                             At null
+;      lblJumps::
+;        RB                              ( numJumps * sizeJumps )
+;        ;:  0x00  dword fbc-address
+;        ;:  0x00  dword real address
+;    End Virtual
+;    Macro addJump                       fbcAddress*,                            newAddress*
+;      Store                             dword fbcAddress                        At lblJumps:(( ctrJumps * sizeJumps ) + 0x00 )
+;      Store                             dword newAddress                        At lblJumps:(( ctrJumps * sizeJumps ) + 0x04 )
+;      ctrJumps                          =                                       ( ctrJumps + 1 )
+;    End Macro
+  ;}
+  ;( read data )
+  ;{
+    Struc readByte                      msgError&
+      If (( ptrStop - ptrFunc ) < __byte__ )
+        Match any, msgError
+          fail msgError
+        Else
+          fail '[asm:compile] reached end of reading frame'
+        End Match
+      End If
+      Load                              temp byte                               From lblInputFile:( ptrFunc )
+      ptrFunc                           =                                       ( ptrFunc + 1 )
+      .                                 =                                       temp
+    End Struc
+    Struc readWord                      msgError&
+      If (( ptrStop - ptrFunc ) < __word__ )
+        Match any, msgError
+          fail msgError
+        Else
+          fail '[asm:compile] reached end of reading frame'
+        End Match
+      End If
+      Load                              temp word                               From lblInputFile:( ptrFunc )
+      ptrFunc                           =                                       ( ptrFunc + 2 )
+      .                                 =                                       temp
+    End Struc
+    Struc readDWord                     msgError&
+      If (( ptrStop - ptrFunc ) < __dword__ )
+        Match any, msgError
+          fail msgError
+        Else
+          fail '[asm:compile] reached end of reading frame'
+        End Match
+      End If
+      Load                              temp dword                              From lblInputFile:( ptrFunc )
+      ptrFunc                           =                                       ( ptrFunc + 4 )
+      .                                 =                                       temp
+    End Struc
+    Struc readQWord                     msgError&
+      If (( ptrStop - ptrFunc ) < __qword__ )
+        Match any, msgError
+          fail msgError
+        Else
+          fail '[asm:compile] reached end of reading frame'
+        End Match
+      End If
+      Load                              temp qword                              From lblInputFile:( ptrFunc )
+      ptrFunc                           =                                       ( ptrFunc + 8 )
+      .                                 =                                       temp
+    End Struc
+    Macro skipData                      length*
+      ptrFunc                           =                                       ( ptrFunc + length )
+    End Macro
+  ;}
+  ;( branching for loops, ifs, etc. )
+  ;{
+    Macro branch                        address*
+      ptrFunc                           compile@@pushCall                       ( ptrBase + address )
+    End Macro
+    Macro return
+      temp                              compile@@popCall
+;      If (( temp.ptrStack - compile@@ptrStack ) = temp.ctrArguments * 16 )
+;        fail '[asm:compile] stack-pointer after call must be equal to stack-pointer before call minus arguments'
+;      End If
+      ptrFunc                           =                                       ( temp.theAddress )
+      compile@@ptrQueque                =                                       ( temp.ptrQueque )
+    End Macro
+  ;}
+  ;( decodeFunctions )
+  ;{
+    Load temp byte from lblInputFil:( 0 )
+    displayValue 'numFunctions: 0x', numFunctions
+    Local ctrFunc
+    Repeat ( numFunctions ), ctrFunc:( null )
+      Load                              ptrFunc qword                           From lblFunctions:(( ctrFunc * sizeFunctions ) + 0x00 )
+      Load                              ptrBase qword                           From lblFunctions:(( ctrFunc * sizeFunctions ) + 0x08 )
+      Load                              ptrStop qword                           From lblFunctions:(( ctrFunc * sizeFunctions ) + 0x10 )
+      display '=== DECODE ===', 10, 10
+      ;compile@@decode
+    End Repeat
+    numFunctions                        =                                       ( ctrFunctions )
+  ;}
+  Purge goDeeper, goHigher, displayDeep
+  Purge setReadingFrame, appendFunction, displayNameOfFunction
+  Restruc isFunction
+  Purge free
+  Restruc allocRegister
+  Restruc readByte, readWord, readDWord, readQWord
+  Purge skipData, branch, return
+  ;numJumps                              =                                       ( ctrJumps )
+End Macro

@@ -1,0 +1,36 @@
+Struc yasic@@newString                  string*
+  Local size, char
+  Virtual                               At null
+    db string
+    size                                =                                       ( $ )
+    Repeat ( size )
+      Load                              char byte                               from ( % - 1 )
+      Store                             byte char                               At yasic@@lblStrings:( yasic@@ptrStrings + % - 1 )
+    End Repeat
+  End Virtual
+  .value                                =                                       ( yasic@@ptrStrings )
+  .size                                 =                                       ( size )
+  yasic@@ptrStrings                     =                                       ( yasic@@ptrStrings + size )
+End Struc
+Macro yasic@@displayString              string*
+  Local char
+  Repeat ( string.size )
+    Load                                char byte                               from  yasic@@lblStrings:( string.value + % - 1 )
+    display char
+  End Repeat
+End Macro
+Struc yasic@@connectStrings             strings&
+  Local char, size, offs, string
+  size                                  =                                       null
+  offs                                  =                                       yasic@@ptrStrings
+  Irp string, strings
+    Repeat ( string.size )
+      Load                              char byte                               from  yasic@@lblStrings:( string.value + % - 1 )
+      Store                             byte char                               At    yasic@@lblStrings:( yasic@@ptrStrings + % - 1 )
+    End Repeat
+    size                                =                                       ( size + string.size )
+    yasic@@ptrStrings                   =                                       ( yasic@@ptrStrings + string.size )
+  End Irp
+  .size                                 =                                       size
+  .value                                =                                       offs
+End Struc

@@ -1,0 +1,6 @@
+Include                                 'include/format.flib'
+Virtual                                 At null
+  lblInput::
+    Include                             theInput
+  lenInput                              =                                       ( $ )
+End Virtual

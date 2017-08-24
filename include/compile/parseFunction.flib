@@ -1,0 +1,120 @@
+Struc compile@@parseFunction            theFunction:( null )
+  Local temp, offs, size, char
+  Local pointer, instruction
+  Local previousInstruction, previousValue
+  Local lblCode, lblStrings
+  Local ptrCode, lenCode, ptrFunc, ptrStrings, lenStrings, ptrCompiled
+  Load                                  ptrCode     qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@offsCode )
+  Load                                  lenCode     qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@sizeCode )
+  Load                                  ptrFunc     qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@offsFunc )
+  Load                                  ptrStrings  qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@offsStrings )
+  Load                                  lenStrings  qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@sizeStrings )
+  Load                                  ptrCompiled qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@addrCompiled )
+  displayOnNewLine 'parse function 0x'
+  displayHexQWord ptrCode
+  display     ' - 0x'
+  displayHexQWord lenCode
+  display     ' - 0x'
+  displayHexQWord ptrFunc
+  displayOnNewLine '               0x'
+  displayHexQWord ptrStrings
+  display     ' - 0x'
+  displayHexQWord lenStrings
+  display     ' - 0x'
+  displayHexQWord ptrCompiled
+  If ( ptrCompiled = nil )
+    displayOnNewLine '{'
+    indentMore
+    temp                                =                                       null
+    pointer                             =                                       ptrFunc
+    lblCode                             Equ                                     format@@lblOutput
+    lblStrings                          Equ                                     format@@lblOutput
+    While ( pointer < lenCode )
+      Load                              instruction byte                        From lblCode:( ptrCode + pointer )
+      displayOnNewLine 'instruction: 0x'
+      displayHexByte instruction
+      pointer                           =                                       ( pointer + 1 )
+      If ( instruction = fbc0@@opFunction )
+        Load                            offs dword                              From lblCode:( ptrCode + pointer + fbc0@@offFunctionMyName - 1 )
+        pointer                         =                                       ( pointer + fbc0@@lenFunctionHeader - 1 )
+        If (( offs < 2 ) | (( lenStrings - offs ) < 0 ))
+          fail 'fbc0@@disassemble', 'pointer out of bonds'
+        Else
+          Load                          size word                               From lblStrings:( ptrStrings + offs - 2 )
+          If (( lenStrings - offs ) < size )
+            fail 'fbc0@@disassemble', 'corrupted string'
+          End If
+          Load                          char size                               From lblStrings:( ptrStrings + offs )
+        End If
+      End If
+      If false
+      Else If ( instruction = fbc0@@opPushByte )
+        Load                            temp byte                               From lblCode:( ptrCode + pointer )
+        pointer                         =                                       ( pointer + 1 )
+      Else If ( instruction = fbc0@@opPushWord )
+        Load                            temp word                               From lblCode:( ptrCode + pointer )
+        pointer                         =                                       ( pointer + 2 )
+      Else If ( instruction = fbc0@@opPushDWord )
+        Load                            temp dword                              From lblCode:( ptrCode + pointer )
+        pointer                         =                                       ( pointer + 4 )
+      Else If ( instruction = fbc0@@opPushQWord )
+        Load                            temp qword                              From lblCode:( ptrCode + pointer )
+        pointer                         =                                       ( pointer + 8 )
+      Else If ( instruction = fbc0@@opAdd )
+      Else If ( instruction = fbc0@@opSub )
+      Else If ( instruction = fbc0@@opMul )
+      Else If ( instruction = fbc0@@opDiv )
+      Else If ( instruction = fbc0@@opMod )
+      Else If ( instruction = fbc0@@opNot )
+      Else If ( instruction = fbc0@@opAnd )
+      Else If ( instruction = fbc0@@opOr )
+      Else If ( instruction = fbc0@@opXor )
+      Else If ( instruction = fbc0@@opLogicalNot )
+      Else If ( instruction = fbc0@@opLogicalAnd )
+      Else If ( instruction = fbc0@@opLogicalOr )
+      Else If ( instruction = fbc0@@opLogicalXor )
+      Else If ( instruction = fbc0@@opLetGlobal )
+      Else If ( instruction = fbc0@@opLetLocal )
+      Else If ( instruction = fbc0@@opGetGlobal )
+      Else If ( instruction = fbc0@@opGetLocal )
+      Else If ( instruction = fbc0@@opStop )
+      Else If ( instruction = fbc0@@opCall )
+;        If (( previousInstruction = fbc0@@opPushByte  ) | \
+;            ( previousInstruction = fbc0@@opPushWord  ) | \
+;            ( previousInstruction = fbc0@@opPushDWord ) | \
+;            ( previousInstruction = fbc0@@opPushQWord ))
+;          Load                      temp byte                               From format@@lblOutput:( ptrCode + previousValue + fbc0@@offFunctionInstruction )
+;          If ( temp = fbc0@@opFunction )
+;            Load                        offs dword                              From format@@lblOutput:( ptrCode + previousValue + fbc0@@offFunctionMyName )
+;            If      ( ptrStrings = null )
+;              fail 'fbc0@@disassemble', 'there is no string-yapter'
+;            Else If (( offs < 2 ) | (( lenStrings - offs ) < 0 ))
+;              fail 'fbc0@@disassemble', 'pointer out of bonds'
+;            Else
+;              Load                      size word                               From format@@lblOutput:( ptrStrings + offs - 2 )
+;              If (( lenStrings - offs ) < size )
+;                fail 'fbc0@@disassemble', 'corrupted string'
+;              End If
+;              Load                      char size                               From format@@lblOutput:( ptrStrings + offs )
+;            End If
+;          End If
+;        End If
+      Else If ( instruction = fbc0@@opFunction )
+      Else If ( instruction = fbc0@@opAllocGlobal )
+      Else If ( instruction = fbc0@@opAllocLocal )
+      Else If ( instruction = fbc0@@opAllocate )
+      Else If ( instruction = fbc0@@opWhen )
+      Else If ( instruction = fbc0@@opNext )
+      Else If ( instruction = fbc0@@opLoop )
+      Else If ( instruction = fbc0@@opBreak )
+      Else If ( instruction = fbc0@@opDone )
+      Else
+      End If
+      previousValue                     =                                       temp
+      previousInstruction               =                                       instruction
+    End While
+    indentLess
+    displayOnNewLine '}'
+  End If
+  .                                     =                                       ptrCompiled
+End Struc

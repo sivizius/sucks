@@ -1,0 +1,190 @@
+Include 'include/fruitbot0.flib'
+Include 'include/yasic.flib'
+Include 'include/compile.flib'
+;( yapter-types )
+;{
+  yapters@@lenOfOneYapter               =                                       32
+  Struc yapters@@addYapterType          yapters@@name*,     yapters@@func*,     yapters@@stop*
+    If ( yapters@@tTypeCounter >= yapters@@tInvalidTypes )
+      fail 'yapters@@addYapterType', 'maximum number of yapter-types reached'
+    End If
+    yapters@@lstYapterTypes             Equ                                     yapters@@name,      yapters@@func,      yapters@@stop
+    .                                   =                                       ( yapters@@tTypeCounter )
+    yapters@@tTypeCounter               =                                       ( yapters@@tTypeCounter + 1 )
+  End Struc
+  Struc yapters@@addUnlistedYapterType
+    If ( yapters@@tTypeCounter >= yapters@@tInvalidTypes )
+      fail 'yapters@@addUnlistedYapterType', 'maximum number of yapter-types reached'
+    End If
+    ;not directly accessable
+    .                                   =                                       ( yapters@@tTypeCounter )
+    yapters@@tTypeCounter               =                                       ( yapters@@tTypeCounter + 1 )
+  End Struc
+  ;( predefined yapter-types )
+  ;{
+    yapters@@tTypeCounter               =                                       0
+    yapters@@tFinal                     yapters@@addUnlistedYapterType
+    yapters@@tStrings                   yapters@@addUnlistedYapterType
+    yapters@@tComment                   yapters@@addUnlistedYapterType
+    yapters@@tBytecode                  yapters@@addUnlistedYapterType
+    ;:  ---
+    yapters@@tInvalidTypes              =                                       65536                                   ;and above
+  ;}
+;}
+;( code yapter )
+;{
+  Macro yapters@@addCodeSpace           language*,                              function*
+    yapters@@lstCode                    Equ                                     language function
+  End Macro
+;}
+;( read yapters )
+;{
+  Struc yapters@@get                    ptrYapterTable*,                        numYapter*
+    Local temp
+    .offs                               =                                       ( ptrYapterTable + numYapter * yapters@@lenOfOneYapter )
+;    displayValue '@0x', .offs
+    Load                                temp word                               From format@@lblOutput:( .offs + 0x00 )
+    .type                               =                                       temp
+    Load                                temp word                               From format@@lblOutput:( .offs + 0x02 )
+    .word                               =                                       temp
+    Load                                temp dword                              From format@@lblOutput:( .offs + 0x04 )
+    .dword                              =                                       temp
+    Load                                temp qword                              From format@@lblOutput:( .offs + 0x08 )
+    .qword0                             =                                       temp
+    Load                                temp qword                              From format@@lblOutput:( .offs + 0x10 )
+    .qword1                             =                                       temp
+    Load                                temp qword                              From format@@lblOutput:( .offs + 0x18 )
+    .qword2                             =                                       temp
+  End Struc
+;}
+Macro uf4@@initFormat                   ignore&
+  Local yapters@@ctrYapters, yapters@@lblYapters, yapters@@numYapters, yapters@@lenMagic
+  Local yapters@@ptrYapter, yapters@@theYapter, yapters@@theFinal
+  format@@newSpace
+    db '#!~/sba/bin/suckmore', 10
+    db '#', 0x19, 0x96, 0x10, 0x03, 0x23, 0x42, 0x13, 0x37, 10, 0
+    yapters@@lenMagic                   =                                       ( $ )
+    rb ( yapters@@lenOfOneYapter * yapters@@numYapters )
+    db ''
+  yapters@@lblYapters                   format@@endSpace
+  yapters@@theFirst                     =                                       ( yapters@@lblYapters + yapters@@lenMagic )
+  yapters@@ctrYapters                   =                                       null
+  Struc yapters@@addYapter              type*,              word0:( null ),     dword0:( null ), \
+                                        qword0:( null ),    qword1:( null ),    qword2:( null )
+    .                                   =                                       ( yapters@@ctrYapters )
+    yapters@@ctrYapters                 =                                       ( yapters@@ctrYapters + 1 )
+    .offs                               =                                       ( yapters@@lblYapters + yapters@@lenMagic + yapters@@lenOfOneYapter * . )
+    Store                               word  type                              At format@@lblOutput:( .offs + 0x00 )
+    Store                               word  word0                             At format@@lblOutput:( .offs + 0x02 )
+    Store                               dword dword0                            At format@@lblOutput:( .offs + 0x04 )
+    Store                               qword qword0                            At format@@lblOutput:( .offs + 0x08 )
+    Store                               qword qword1                            At format@@lblOutput:( .offs + 0x10 )
+    Store                               qword qword2                            At format@@lblOutput:( .offs + 0x18 )
+  End Struc
+  yapters@@ptrYapter                    =                                       null
+  yapters@@theYapter                    =                                       null
+  Macro yapters@@newYapter              type*,              word0:( null ),     dword0:( null ), \
+                                        qword0:( null ),    qword1:( null ),    qword2:( null )
+    yapters@@theYapter                  yapters@@addYapter  type,     word0,    dword0, \
+                                                            qword0,   qword1,   qword2
+    yapters@@ptrYapter                  =                                       ( format@@offsOutput )
+  End Macro
+  Struc yapters@@info
+    .                                   =                                       yapters@@theYapter
+    .base                               =                                       ( yapters@@ptrYapter - yapters@@theFinal.offs - yapters@@lenOfOneYapter )
+    .offs                               =                                       ( yapters@@ptrYapter - format@@ptrOutput )
+    .absolute                           =                                       ( yapters@@ptrYapter )
+    ;displayValue 'base     0x', .base
+    ;displayValue 'offs     0x', .offs
+    ;displayValue 'absolute 0x', .absolute
+    .size                               =                                       ( format@@offsOutput - yapters@@ptrYapter )
+  End Struc
+  Struc yapters@@endYapter
+    .                                   yapters@@info
+  End Struc
+  ;( code pseudo-yapter )
+  ;{
+    ;>  code language
+    ;>    ;some code
+    ;>  end code
+    Macro code                          language*,                              arguments&
+      Local foundLanguage, item, langCode, funcCode
+      foundLanguage                     =                                       false
+      Macro yapters@@codeFinaliser
+      End Macro
+      Irpv                              item,                                   yapters@@lstCode
+        Match                           langCode funcCode,                      item
+          If ( `langCode = `language )
+            displayOnNewLine '<code:', `langCode, '>'
+            displayOnNewLine '{'
+            indentMore
+            foundLanguage               =                                       true
+;            funcCode                    arguments
+            Match                       any,                                    arguments
+              funcCode                  arguments
+            Else
+              funcCode
+            End Match
+          End If
+        Else
+          fail 'format→uf4→code', 'cannot parse entry in list of code-spaces (u know, what i mean)'
+        End Match
+      End Irpv
+      If ( foundLanguage = false )
+        fail 'format→uf4→code', 'unknown language »', `language, '«'
+      End If
+      Macro end?.code!
+        yapters@@codeFinaliser
+        indentLess
+        displayOnNewLine '}'
+        Purge yapters@@codeFinaliser
+        Purge end?.code
+      End Macro
+    End Macro
+  ;}
+  Macro uf4@@stopFormat
+    Local theYapter, count, offs, temp
+    yapters@@theFinal                   yapters@@addYapter                      null
+    yapters@@numYapters                 =                                       ( yapters@@ctrYapters )
+    .yapters@@numYapters                =                                       ( yapters@@ctrYapters )
+    displayOnNewLine 'type     word   dword      qword              qword              qword'
+    Repeat ( yapters@@numYapters ), count:( null )
+      offs                              =                                       ( yapters@@lblYapters + yapters@@lenMagic + yapters@@lenOfOneYapter * count )
+      displayOnNewLine ''
+      Load                              temp word                               From format@@lblOutput:( offs + 0x00 )
+      If false
+      Else If ( temp = yapters@@tFinal )
+        display 'final   '
+      Else If ( temp = yapters@@tStrings )
+        display 'strings '
+      Else If ( temp = yapters@@tComment )
+        display 'comment '
+      Else If ( temp = yapters@@tBytecode )
+        display 'bytecode'
+      Else
+        display '<0x'
+        displayHexWord temp
+        display '>'
+      End If
+      display ' 0x'
+      Load                              temp word                               From format@@lblOutput:( offs + 0x02 )
+      displayHexWord temp
+      display ' 0x'
+      Load                              temp dword                              From format@@lblOutput:( offs + 0x04 )
+      displayHexDWord temp
+      display ' 0x'
+      Load                              temp qword                              From format@@lblOutput:( offs + 0x08 )
+      displayHexQWord temp
+      display ' 0x'
+      Load                              temp qword                              From format@@lblOutput:( offs + 0x10 )
+      displayHexQWord temp
+      display ' 0x'
+      Load                              temp qword                              From format@@lblOutput:( offs + 0x18 )
+      displayHexQWord temp
+    End Repeat
+    displayValue 'ycontent @0x', ( yapters@@lblYapters + yapters@@lenMagic + yapters@@lenOfOneYapter * yapters@@numYapters )
+    Purge code, yapters@@newYapter
+    Restruc yapters@@addYapter, yapters@@info, yapters@@endYapter
+  End Macro
+End Macro
+format@@addFormat                       uf4,                uf4@@initFormat,    uf4@@stopFormat

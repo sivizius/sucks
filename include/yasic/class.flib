@@ -1,0 +1,45 @@
+Macro class                             lstArgument&
+  Local theArgument, restArgument
+  Local name
+  Match                                 +,                                      yasic@@global
+    Match                               name restArgument,                      lstArgument
+      Irpv                              theArgument,                            restArgument
+      End Irpv
+      Struc yasic@@classDefine          expression&
+        Local type, value
+        Match                           type value,                             expression
+          Match                         +,                                      type
+            .                           type                                    value
+          Else
+            err 10, '[asm:yasic] unknown type: »', `type, '«'
+          End Match
+        Else
+          err 10, '[asm:yasic] could not parse type'
+        End Match
+      End Struc
+      Macro private                     expression&
+        Local temp
+        temp                            yasic@@classDefine                      expression
+      End Macro
+      Macro public                      expression&
+        Local temp
+        temp                            yasic@@classDefine                      expression
+        oop@@#className#_public_#temp.name#_varType                             =                                       temp.uid
+        oop@@#className#_public_#temp.name#_varIdent                            =                                       temp.var
+      End Macro
+      Macro end?.class!
+        Local temp
+        yasic@@global                   Equ                                     +
+        temp                            uf4@@endLayer
+        Purge end?.class, private, public
+        restruc yasic@@classDefine
+      End Macro
+      uf4@@newLayer
+      yasic@@global                     Equ                                     =
+    Else
+      err 10, '[asm:yasic] could not parse name of the class'
+    End Match
+  Else
+    err 10, '[asm:yasic] definition of classes is only allowed in global environment'
+  End Match
+End Macro

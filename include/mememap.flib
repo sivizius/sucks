@@ -1,0 +1,40 @@
+;<=================================================>
+;<   this is designed simple and fast, not save.   >
+;<   neither sizes nor pointers will be checked!   >
+;< if you write outside boundaries, this will fail >
+;<     or you overwirte data of other buffers!     >
+;< free does not free memory yet, beware of leaks! >
+;<=================================================>
+mememap@@ptrBuffer                      =                                       ( null )
+Virtual                                 At mememap@@ptrBuffer
+  mememap@@lblBuffer::
+    rb                                  mememap@@lenBuffer
+End Virtual
+Struc mememap@@allocate                 size*
+  .                                     =                                       ( mememap@@ptrBuffer )
+  .size                                 =                                       ( size )
+  mememap@@ptrBuffer                    =                                       ( mememap@@ptrBuffer + size )
+End Struc
+Macro mememap@@free                     buffer*
+End Macro
+Macro mememap@@writeBuffer              ptrBuffer*,                             ptrData*,                               lenData*
+  Local temp
+  Load                                  temp lenData                            From  ptrData
+  Store                                 lenData temp                            At    mememap@@lblBuffer:( ptrBuffer )
+End Macro
+Macro mememap@@readBuffer               ptrBuffer*,                             ptrData*,                               lenData*
+  Local temp
+  Load                                  temp lenData                            From  mememap@@lblBuffer:( ptrBuffer )
+  Store                                 lenData temp                            At    ptrData
+End Macro
+Macro mememap@@writeValue               ptrBuffer*,                             theData*,                               lenData*
+  Store                                 lenData theData                         At    mememap@@lblBuffer:( ptrBuffer )
+End Macro
+Struc mememap@@readValue                ptrBuffer*,                             lenData*
+  Local temp
+  Load                                  temp lenData                            From  mememap@@lblBuffer:( ptrBuffer )
+  .                                     =                                       temp
+End Struc
+Postpone
+  mememap@@lenBuffer                    =                                       mememap@@ptrBuffer
+End Postpone

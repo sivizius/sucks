@@ -1,0 +1,329 @@
+Macro yasic@@parseChar                  char&
+  Local stack0, stack1
+  Local __func__
+;  display `char, 10
+  If ( yasic@@expectOperant )
+    If null                                                                                         ;precedence
+    Else If ( `char = 'not' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opPrefixLogicNot,      0x0e
+    Else If ( `char = '+' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opPrefixPositive,      0x0e
+    Else If ( `char = '-' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opPrefixNegative,      0x0e
+    Else If ( `char = '~' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opPrefixArithmeticNot, 0x0e
+    Else If ( `char = '&' )
+      stack0                            yasic@@pop
+      If ( stack0.value = yasic@@opArithmeticAnd )
+        yasic@@push                     yasic@@tOperator,             yasic@@opLogicAnd,            0x07
+      Else
+        fail 'yasic@@parseChar', 'unknown operator.'
+      End If
+    Else If ( `char = '|' )
+      stack0                            yasic@@pop
+      If      ( stack0.value = yasic@@opArithmeticOr )
+        yasic@@push                     yasic@@tOperator,             yasic@@opLogicOr,             0x05
+      Else
+        fail 'yasic@@parseChar', 'unknown operator.'
+      End If
+    Else If ( `char = '!' )
+      stack0                            yasic@@pop
+      If      ( stack0.value = yasic@@opArithmeticXor )
+        yasic@@push                     yasic@@tOperator,             yasic@@opLogicXor,            0x06
+      Else
+        fail 'yasic@@parseChar', 'unknown operator.'
+      End If
+    Else If ( `char = '=' )
+      stack0                            yasic@@pop
+      If      ( stack0.value = yasic@@opLet )
+        yasic@@push                     yasic@@tOperator,             yasic@@opEqual,               0x09
+      Else If ( stack0.value = yasic@@opArithmeticXor )
+        yasic@@push                     yasic@@tOperator,             yasic@@opUnequal,             0x09
+      Else If ( stack0.value = yasic@@opAbove )
+        yasic@@push                     yasic@@tOperator,             yasic@@opAboveEqual,          0x09
+      Else If ( stack0.value = yasic@@opBelow )
+        yasic@@push                     yasic@@tOperator,             yasic@@opBelowEqual,          0x09
+      Else
+        fail 'yasic@@parseChar', 'unknown operator.'
+      End If
+    Else If ( `char = '>' )
+      stack0                            yasic@@pop
+      If      ( stack0.value = yasic@@opAbove )
+        yasic@@push                     yasic@@tOperator,             yasic@@opUnsignedShiftRight,  0x0a
+      Else If ( stack0.value = yasic@@opUnsignedShiftRight )
+        yasic@@push                     yasic@@tOperator,             yasic@@opSignedShiftRight,    0x0a
+      Else If ( stack0.value = yasic@@opBelow )
+        yasic@@push                     yasic@@tOperator,             yasic@@opUnequal,             0x08
+      Else
+        fail 'yasic@@parseChar', 'unknown operator.'
+      End If
+    Else If ( `char = '<' )
+      stack0                            yasic@@pop
+      If      ( stack0.value = yasic@@opBelow )
+        yasic@@push                     yasic@@tOperator,             yasic@@opUnsignedShiftLeft,   0x0a
+      Else If ( stack0.value = yasic@@opUnsignedShiftLeft )
+        yasic@@push                     yasic@@tOperator,             yasic@@opSignedShiftLeft,     0x0a
+      Else
+        fail 'yasic@@parseChar', 'unknown operator.'
+      End If
+    Else If ( `char = '.' )
+      stack0                            yasic@@pop
+      If      ( stack0.value = yasic@@opDot )
+        yasic@@push                     yasic@@tOperator,             yasic@@opConnectStrings,      0x0f
+      Else
+        fail 'yasic@@parseChar', 'unknown operator.'
+      End If
+    Else If ( `char = '(' )
+      yasic@@push                       yasic@@tParentheses,          yasic@@currentState
+      yasic@@currentState               =                                       null
+    Else If ( `char = ')' )
+      If ( yasic@@currentState = yasic@@tItem )
+        stack0                          yasic@@pop
+        yasic@@enque                    yasic@@tFunction,             stack0.value,                 stack0.size,        stack0.misc
+        yasic@@expectOperant            =                                       false
+      Else
+        fail 'yasic@@parseChar', 'unexpected »)«'
+      End If
+    Else If ( `char = ',' )
+      fail 'yasic@@parseChar', 'does not expect a list of arguments'
+    Else
+      If ( yasic@@ptrStack >= 32 )
+        stack0                          yasic@@pop
+        stack1                          yasic@@pop
+        If      (( stack0.type = yasic@@tOperator ) & \
+                 ( stack1.type = yasic@@tOperator ) & \
+                 ( stack0.size < stack1.size ))                       ;size = precedence
+          yasic@@enque                  stack1.type,                  stack1.value,                 stack1.size,        stack1.misc
+        Else If (( stack0.type = yasic@@tOperator ) & \
+                 ( stack1.type = yasic@@tOperator ) & \
+                 ( stack1.size <> 5 )               & \               ;a^b^c -> abc^^
+                 ( stack0.size = stack1.size ))
+          yasic@@enque                  stack1.type,                  stack1.value,                 stack1.size,        stack1.misc
+        Else
+          yasic@@push                   stack1.type,                  stack1.value,                 stack1.size,        stack1.misc
+        End If
+        yasic@@push                     stack0.type,                  stack0.value,                 stack0.size,        stack0.misc
+      End If
+      If ~ ( defined char )
+        If      (( defined .yasic@@#char#@type ) & ( .yasic@@#char#@type = yasic@@tFunction ))
+          yasic@@push                   yasic@@tFunction,             .yasic@@#char#@addr,                    .yasic@@#char#@size,                    yasic@@currentState
+          yasic@@currentState           =                             yasic@@tFunction
+        Else If (( defined .yasic@@#char#@type ) & ( .yasic@@#char#@type = yasic@@tVariableGlobal ))
+          yasic@@enque                  yasic@@tVariableGlobal,       .yasic@@#char#@vuid,                    .yasic@@#char#@size,                    .yasic@@#char#@retn
+        Else
+          Match                         __func__,                     yasic@@func
+            If (( defined .yasic@@#__func__#@#char#@type ) & ( .yasic@@#__func__#@#char#@type = yasic@@tVariableLocal ))
+              yasic@@enque              yasic@@tVariableLocal,        .yasic@@#__func__#@#char#@vuid,         .yasic@@#__func__#@#char#@size,         .yasic@@#__func__#@#char#@retn
+            Else
+              fail 'yasic@@parseChar', 'undefined variable in »', `__func__, '«'
+            End If
+          Else
+            fail 'yasic@@parseChar', 'undefined variable in global'
+          End Match
+        End If
+      Else If ( char eqtype 12345 )
+        yasic@@enque                    yasic@@tConstant,             char
+      Else If ( char eqtype 'abc' )
+        stack0                          yasic@@newString              char
+        yasic@@enque                    yasic@@tConstString,          stack0.value,                 stack0.size
+      Else
+        fail 'yasic@@parseChar', 'unknown symbol: »', `char, '«'
+      End If
+      yasic@@expectOperant              =                                       false
+    End If
+  Else
+    yasic@@expectOperant                =                                       true
+    If (( `char <> '(' ) & ( yasic@@currentState = yasic@@tFunction ))
+      fail 'yasic@@parseChar', '»(« expected after function'
+    End If
+    If null
+    Else If ( `char = '&' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opArithmeticAnd,       0x05
+    Else If ( `char = '|' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opArithmeticOr,        0x07
+    Else If ( `char = '!' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opArithmeticXor,       0x06
+    Else If ( `char = '+' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opAdd,                 0x0b
+    Else If ( `char = '-' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opSub,                 0x0b
+    Else If ( `char = '*' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opMul,                 0x0c
+    Else If ( `char = '/' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opDiv,                 0x0c
+    Else If ( `char = '%' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opMod,                 0x0c
+    Else If ( `char = '^' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opPower,               0x0d
+    Else If ( `char = '>' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opAbove,               0x09
+    Else If ( `char = '<' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opBelow,               0x09
+    Else If ( `char = '.' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opDot,                 0x0f
+    Else If ( `char = 'and' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opLogicAnd,            0x04
+    Else If ( `char = 'or' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opLogicOr,             0x02
+    Else If ( `char = 'xor' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opLogicXor,            0x03
+    Else If ( `char = '=' )
+      yasic@@push                       yasic@@tOperator,             yasic@@opLet,                 0x01
+    Else If ( `char = ')' )
+      yasic@@expectOperant              =                                       false
+      If ( yasic@@ptrStack < 16 )
+        fail 'yasic@@parseChar', 'excess closing parenthesis'
+      End If
+      While ( yasic@@ptrStack >= 16 )
+        stack0                          yasic@@pop
+        If      ( stack0.type = yasic@@tParentheses )
+          ;yasic@@push                   stack0.type,                  stack0.value,                 stack0.size,        stack0.misc
+          yasic@@currentState           =                                       stack0.misc
+          Break
+        Else If (( stack0.type = yasic@@tFunction ) & ( yasic@@currentState = yasic@@tItem ))
+          yasic@@enque                  yasic@@tFunction,             stack0.value,                 stack0.size,        stack0.misc
+          Break
+        Else
+          yasic@@enque                  stack0.type,                  stack0.value,                 stack0.size,        stack0.misc
+        End If
+      End While
+    Else If ( `char = '(' )
+      If ( yasic@@currentState = yasic@@tFunction )
+        yasic@@enque                    yasic@@tItem,                 null
+        yasic@@currentState             =                                       yasic@@tItem
+      Else
+        fail 'yasic@@parseChar', 'unexpected »(«'
+      End If
+    Else If ( `char = ',' )
+      If ( yasic@@currentState = yasic@@tItem )
+        While ( yasic@@ptrStack >= 16 )
+          stack0                      yasic@@pop
+          If      ( stack0.type = yasic@@tFunction )
+            yasic@@push                 yasic@@tFunction,             stack0.value,                 stack0.size,        stack0.misc
+            Break
+          Else If ( stack0.type = yasic@@tItem )                      ;<comming soon>
+            yasic@@push                 yasic@@tItem,                 stack0.value,                 stack0.size,        stack0.misc
+            Break
+          Else
+            yasic@@enque                stack0.type,                  stack0.value,                 stack0.size,        stack0.misc
+          End If
+        End While
+      End If
+    Else
+      fail 'yasic@@parseChar', 'unexpected operator'
+    End If
+  End If
+End Macro
+
+Macro yasic@@parseExpression            theExpression&
+;  displayOnNewLine '<parse expression>'
+  yasic@@endQueque                      =                                       null
+  yasic@@ptrStack                       =                                       null
+  yasic@@expectOperant                  =                                       true
+  yasic@@currentState                   =                                       null
+  Local lstExpression, charExpression, restExpression, temp
+  Define                                lstExpression                           theExpression
+  While true
+    Match                               charExpression restExpression,          lstExpression
+      Define                            lstExpression                           restExpression
+;      displayOnNewLine '#', `charExpression
+      yasic@@parseChar                  charExpression
+    Else
+      Match                             any,                                    lstExpression
+;        displayOnNewLine '#', `any
+        yasic@@parseChar                any
+      End Match
+      Break
+    End Match
+  End While
+  While ( yasic@@ptrStack > 0 )
+    temp                                yasic@@pop
+    yasic@@enque                        temp.type,          temp.value,         temp.size,          temp.misc
+  End While
+End Macro
+
+Macro yasic@@displayExpression
+  Local temp
+  yasic@@ptrQueque                      =                                       null
+  displayOnNewLine ''
+  While ( yasic@@ptrQueque < yasic@@endQueque )
+    temp                                yasic@@deque
+    If      ( temp.type = yasic@@tOperator )
+      display '['
+      yasic@@opDisplay                  temp.value
+      display ']'
+    Else If ( temp.type = yasic@@tParentheses )
+      fail 'yasic@@displayExpression', 'missing closing parenthesis'
+    Else If ( temp.type = yasic@@tItem )
+      display '{'
+    Else If ( temp.type = yasic@@tFunction )
+      display '}->(0x'
+      displayHexQWord temp.value
+      display ')'
+    Else If ( temp.type = yasic@@tConstByte )
+      display '(0x'
+      displayHexByte ( temp.value )
+      display ')'
+    Else If ( temp.type = yasic@@tConstWord )
+      display '(0x'
+      displayHexWord ( temp.value )
+      display ')'
+    Else If ( temp.type = yasic@@tConstDWord )
+      display '(0x'
+      displayHexDWord ( temp.value )
+      display ')'
+    Else If ( temp.type = yasic@@tConstQWord )
+      display '(0x'
+      displayHexQWord ( temp.value )
+      display ')'
+    Else If ( temp.type = yasic@@tConstant )
+      display '(0x'
+      displayHexQWord ( temp.value )
+      display ')'
+    Else If ( temp.type = yasic@@tVariableGlobal )
+      display '(global t:0x'
+      displayHexWord ( temp.misc )
+      display ', v:0x'
+      displayHexWord ( temp.value )
+      display ', s:0x'
+      displayHexWord ( temp.size )
+      display ')'
+    Else If ( temp.type = yasic@@tVariableLocal )
+      display '(local t:0x'
+      displayHexWord ( temp.misc )
+      display ', v:0x'
+      displayHexWord ( temp.value )
+      display ', s:0x'
+      displayHexWord ( temp.size )
+      display ')'
+    Else If ( temp.type = yasic@@tConstString )
+      display '(»'
+      yasic@@displayString              temp
+      display '«)'
+    End If
+  End While
+End Macro
+Macro yasic@@compileExpression
+  Local temp
+  yasic@@ptrQueque                      =                                       null
+  While ( yasic@@ptrQueque < yasic@@endQueque )
+    temp                                yasic@@deque
+    If      ( temp.type = yasic@@tOperator )
+      yasic@@opCompile                  temp.value
+    Else If ((( temp.type >= yasic@@tConstByte ) & ( temp.type <= yasic@@tConstQWord )) | temp.type <= yasic@@tConstant )
+      pushConstant                      ( temp.value + 0 )
+    Else If ( temp.type = yasic@@tParentheses )
+      fail 'yasic@@compileExpression', 'missing closing parenthesis'
+    Else If ( temp.type = yasic@@tVariableGlobal )
+      pushConstant                      ( temp.misc  + 0 )                      ;type uid
+      pushConstant                      ( temp.value + 0 )                      ;var uid
+      getGlobal
+    Else If ( temp.type = yasic@@tVariableLocal )
+      pushConstant                      ( temp.misc  + 0 )                      ;type uid
+      pushConstant                      ( temp.value + 0 )                      ;var uid
+      getLocal
+    Else
+      fail 'yasic@@compileExpression', 'cannot compile this'
+    End If
+  End While
+End Macro

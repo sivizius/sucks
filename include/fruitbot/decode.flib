@@ -1,0 +1,157 @@
+Macro fbc0@@decode                      ptrCode*,                     lenCode*,           ptrMain*, \
+                                        ptrStrings:( null ),          lenStrings:( null )
+  Local temp, offs, size, char
+  Local pointer, instruction
+  Local previousInstruction, previousValue
+  Local ptrFunction
+  Local theYapter
+;  displayValue '->ptrCode 0x', ptrCode
+  yapters@@newYapter                    yapters@@tComment,  null,               null, \
+                                        null,               theYapter.size,     theYapter.base
+    format@@newSpace
+      db 10, 'disassemble:', 10
+      temp                              =                                       null
+      pointer                           =                                       null
+      While ( pointer < lenCode )
+        Load                            instruction byte                        From format@@lblOutput:( ptrCode + pointer )
+        If ( pointer = ptrMain )
+          db '->'
+        Else
+          db '  '
+        End If
+        db '0x'
+        hw pointer
+        db ' 0x'
+        hb instruction
+        db ' '
+        pointer                         =                                       ( pointer + 1 )
+        If ( instruction = fbc0@@opFunction )
+          Load                          offs dword                              From format@@lblOutput:( ptrCode + pointer + fbc0@@offFunctionMyName - 1 )
+          pointer                       =                                       ( pointer + fbc0@@lenFunctionHeader - 1 )
+          If (( offs < 2 ) | (( lenStrings - offs ) < 0 ))
+            fail 'fbc0@@disassemble', 'pointer out of bonds1'
+          Else
+            Load                        size word                               From format@@lblOutput:( ptrStrings + offs - 2 )
+            If (( lenStrings - offs ) < size )
+              fail 'fbc0@@disassemble', 'corrupted string'
+            End If
+            Load                        char size                               From format@@lblOutput:( ptrStrings + offs )
+            dbx                         ( size ): char
+            db ':'
+          End If
+        Else
+          db '  '
+        End If
+        If false
+        Else If ( instruction = fbc0@@opPushByte )
+          Load                          temp byte                               From format@@lblOutput:( ptrCode + pointer )
+          pointer                       =                                       ( pointer + 1 )
+          db 'pushByte 0x'
+          hb ( temp )
+        Else If ( instruction = fbc0@@opPushWord )
+          Load                          temp word                               From format@@lblOutput:( ptrCode + pointer )
+          pointer                       =                                       ( pointer + 2 )
+          db 'pushWord 0x'
+          hw ( temp )
+        Else If ( instruction = fbc0@@opPushDWord )
+          Load                          temp dword                              From format@@lblOutput:( ptrCode + pointer )
+          pointer                       =                                       ( pointer + 4 )
+          db 'pushDWord 0x'
+          hd ( temp )
+        Else If ( instruction = fbc0@@opPushQWord )
+          Load                          temp qword                              From format@@lblOutput:( ptrCode + pointer )
+          pointer                       =                                       ( pointer + 8 )
+          db 'pushQWord 0x'
+          hq ( temp )
+        Else If ( instruction = fbc0@@opAdd )
+          db 'add = pushConstant ( #1 + #2 )'
+        Else If ( instruction = fbc0@@opSub )
+          db 'sub = pushConstant ( #1 - #2 )'
+        Else If ( instruction = fbc0@@opMul )
+          db 'mul = pushConstant ( #1 * #2 )'
+        Else If ( instruction = fbc0@@opDiv )
+          db 'div = pushConstant ( #1 / #2 )'
+        Else If ( instruction = fbc0@@opMod )
+          db 'mod = pushConstant ( #1 % #2 )'
+        Else If ( instruction = fbc0@@opNot )
+          db 'not = pushConstant ( ~ #1 )'
+        Else If ( instruction = fbc0@@opAnd )
+          db 'and = pushConstant ( #1 & #2 )'
+        Else If ( instruction = fbc0@@opOr )
+          db 'or = pushConstant ( #1 | #2 )'
+        Else If ( instruction = fbc0@@opXor )
+          db 'xor = pushConstant ( #1 ! #2 )'
+        Else If ( instruction = fbc0@@opLogicalNot )
+          db 'lnot = pushConstant ( not #1 )'
+        Else If ( instruction = fbc0@@opLogicalAnd )
+          db 'land = pushConstant ( #1 and #2 )'
+        Else If ( instruction = fbc0@@opLogicalOr )
+          db 'lor = pushConstant ( #1 or #2 )'
+        Else If ( instruction = fbc0@@opLogicalXor )
+          db 'lxor = pushConstant ( #1 xor #2 )'
+        Else If ( instruction = fbc0@@opLetGlobal )
+          db 'let global value, type, uid'
+        Else If ( instruction = fbc0@@opLetLocal )
+          db 'let local value, type, uid'
+        Else If ( instruction = fbc0@@opGetGlobal )
+          db 'get global type, uid'
+        Else If ( instruction = fbc0@@opGetLocal )
+          db 'get local type, uid'
+        Else If ( instruction = fbc0@@opStop )
+          db 'stop'
+        Else If ( instruction = fbc0@@opCall )
+          db 'call'
+          If (( previousInstruction = fbc0@@opPushByte  ) | \
+              ( previousInstruction = fbc0@@opPushWord  ) | \
+              ( previousInstruction = fbc0@@opPushDWord ) | \
+              ( previousInstruction = fbc0@@opPushQWord ))
+            displayValue 'call *0x', ( ptrCode + previousValue + fbc0@@offFunctionInstruction )
+            Load                        temp byte                               From format@@lblOutput:( ptrCode + previousValue + fbc0@@offFunctionInstruction )
+            If ( temp = fbc0@@opFunction )
+              Load                      offs dword                              From format@@lblOutput:( ptrCode + previousValue + fbc0@@offFunctionMyName )
+              If      ( ptrStrings = null )
+                fail 'fbc0@@disassemble', 'there is no string-yapter'
+              Else If (( offs < 2 ) | (( lenStrings - offs ) < 0 ))
+                displayOnNewLine 'failure'
+                fail 'fbc0@@disassemble', 'pointer out of bonds2'
+              Else
+                Load                    size word                               From format@@lblOutput:( ptrStrings + offs - 2 )
+                If (( lenStrings - offs ) < size )
+                  fail 'fbc0@@disassemble', 'corrupted string'
+                End If
+                db ' <'
+                Load                    char size                               From format@@lblOutput:( ptrStrings + offs )
+                dbx                     ( size ): char
+                db '>'
+              End If
+            End If
+          End If
+        Else If ( instruction = fbc0@@opFunction )
+        Else If ( instruction = fbc0@@opAllocGlobal )
+          db 'allocGlobal'
+        Else If ( instruction = fbc0@@opAllocLocal )
+          db 'allocLocal'
+        Else If ( instruction = fbc0@@opAllocate )
+          db 'allocate'
+        Else If ( instruction = fbc0@@opWhen )
+          db 'when condition, address'
+        Else If ( instruction = fbc0@@opNext )
+          db 'next condition, address'
+        Else If ( instruction = fbc0@@opLoop )
+          db 'loop address'
+        Else If ( instruction = fbc0@@opBreak )
+          db 'break'
+        Else If ( instruction = fbc0@@opDone )
+          db 'done'
+        Else
+          db '<0x'
+          hb instruction
+          db '>'
+        End If
+        previousValue                   =                                       temp
+        previousInstruction             =                                       instruction
+        db 10
+      End While
+    format@@endSpace
+  theYapter                             yapters@@endYapter
+End Macro

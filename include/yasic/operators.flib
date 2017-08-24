@@ -1,0 +1,127 @@
+;( operators )
+;{
+  enumerate ( 1 ),                      yasic@@opPrefixArithmeticNot, \         ; !x
+                                        yasic@@opPrefixLogicNot, \              ; not x
+                                        yasic@@opPrefixNegative, \              ; - x
+                                        yasic@@opPrefixPositive, \              ; + x
+                                        yasic@@opAdd, \                         ; x + y
+                                        yasic@@opSub, \                         ; x - y
+                                        yasic@@opMul, \                         ; x * y
+                                        yasic@@opDiv, \                         ; x / y
+                                        yasic@@opMod, \                         ; x % y
+                                        yasic@@opPower, \                       ; x ^ y
+                                        yasic@@opArithmeticAnd, \               ; x & y
+                                        yasic@@opArithmeticOr, \                ; x | y
+                                        yasic@@opArithmeticXor, \               ; x ! y
+                                        yasic@@opLogicAnd, \                    ; x and y
+                                        yasic@@opLogicOr, \                     ; x or y
+                                        yasic@@opLogicXor, \                    ; x xor y
+                                        yasic@@opUnsignedShiftLeft, \           ; x << y
+                                        yasic@@opUnsignedShiftRight, \          ; x >> y
+                                        yasic@@opSignedShiftRight, \            ; x >>> y
+                                        yasic@@opLet, \                         ; x = y
+                                        yasic@@opEqual, \                       ; x == y
+                                        yasic@@opUnequal, \                     ; x <> y, x != y
+                                        yasic@@opAbove, \                       ; x > y
+                                        yasic@@opAboveEqual, \                  ; x >= y
+                                        yasic@@opBelow, \                       ; x < y
+                                        yasic@@opBelowEqual, \                  ; x <= y
+                                        yasic@@opDot, \                         ; x . y (invalid operator)
+                                        yasic@@opConnectStrings, \              ; x .. y
+                                        yasic@@opFinal
+  yasic@@opSignedShiftLeft              =                                       yasic@@opUnsignedShiftLeft
+  ;displayValue 'yasic@@opFinal = 0x', yasic@@opFinal
+;}
+;( operator precedence )
+;{
+;:  0x01  x = y
+;:  0x02  x or y
+;:  0x03  x xor y
+;:  0x04  x and y
+;:  0x05  x | y
+;:  0x06  x ! y
+;:  0x07  x & y
+;:  0x08  x == y, x <> y, x != y
+;:  0x09  x < y, x <= y, x > y, x >= y
+;:  0x0a  x << y, x <<< y, x >> y, x >>> y
+;:  0x0b  x + y, x - y
+;:  0x0c  x * y, x / y, x % y
+;:  0x0d  x ^ y
+;:  0x0e  +x, -x, not x, !x, ++x, --x
+;:  0x0f  x++, x--, ..
+;}
+Macro yasic@@opDisplay                  operator*
+  If false
+  Else If ( operator = yasic@@opPrefixArithmeticNot )
+    display '~'
+  Else If ( operator = yasic@@opPrefixLogicNot )
+    display '!'
+  Else If ( operator = yasic@@opPrefixNegative )
+    display '-'
+  Else If ( operator = yasic@@opPrefixPositive )
+    display '+'
+  Else If ( operator = yasic@@opAdd )
+    display '+'
+  Else If ( operator = yasic@@opSub )
+    display '-'
+  Else If ( operator = yasic@@opMul )
+    display '*'
+  Else If ( operator = yasic@@opDiv )
+    display '/'
+  Else If ( operator = yasic@@opMod )
+    display '%'
+  Else If ( operator = yasic@@opPower )
+    display '^'
+  Else If ( operator = yasic@@opArithmeticAnd )
+    display '&'
+  Else If ( operator = yasic@@opArithmeticOr )
+    display '|'
+  Else If ( operator = yasic@@opArithmeticXor )
+    display '!'
+  Else If ( operator = yasic@@opLogicAnd )
+    display 'and'
+  Else If ( operator = yasic@@opLogicOr )
+    display 'or'
+  Else If ( operator = yasic@@opLogicXor )
+    display 'xor'
+  Else If ( operator = yasic@@opUnsignedShiftLeft )
+    display '<<'
+  Else If ( operator = yasic@@opUnsignedShiftRight )
+    display '>>'
+  Else If ( operator = yasic@@opSignedShiftRight )
+    display '>>>'
+  Else If ( operator = yasic@@opLet )
+    display '='
+  Else If ( operator = yasic@@opEqual )
+    display '=='
+  Else If ( operator = yasic@@opUnequal )
+    display '!='
+  Else If ( operator = yasic@@opAbove )
+    display '>'
+  Else If ( operator = yasic@@opAboveEqual )
+    display '>='
+  Else If ( operator = yasic@@opBelow )
+    display '<'
+  Else If ( operator = yasic@@opBelowEqual )
+    display '<='
+  Else If ( operator = yasic@@opConnectStrings )
+    display '..'
+  Else
+    display '0x'
+    displayHexByte ( operator )
+  End If
+End Macro
+Macro yasic@@opCompile                  operator*
+  If false
+  Else If ( operator = yasic@@opAdd )
+    add
+  Else If ( operator = yasic@@opSub )
+    sub
+  Else If ( operator = yasic@@opMul )
+    mul
+  Else If ( operator = yasic@@opDiv )
+    div
+  Else
+    fail 'yasic@@opCompile', 'cannot compile operation'
+  End If
+End Macro

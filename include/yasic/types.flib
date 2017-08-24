@@ -1,0 +1,19 @@
+;( types )
+;{
+  enumerate ( 1 ),                      yasic@@tConstant, \
+                                        yasic@@tConstByte, \
+                                        yasic@@tConstWord, \
+                                        yasic@@tConstDWord, \
+                                        yasic@@tConstQWord, \
+                                        yasic@@tConstString, \
+                                        yasic@@tOperator, \
+                                        yasic@@tParentheses, \
+                                        yasic@@tVariableGlobal, \
+                                        yasic@@tVariableLocal, \
+                                        yasic@@tFunction, \
+                                        yasic@@tType, \
+                                        yasic@@tItem, \
+                                        yasic@@tFinal
+  ;displayValue 'yasic@@tFinal = 0x', yasic@@tFinal
+;}
+

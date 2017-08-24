@@ -1,0 +1,183 @@
+null                                    =                                       ( 0 )
+false                                   Equ                                     ( 0 )
+true                                    Equ                                     ( 1 )
+nil                                     =                                       (( 1 shl 63 ) - 1 + ( 1 shl 63 ))
+NANOSECONDS                             =                                       ( 1 )
+MICROSECONDS                            =                                       ( 1000 * NANOSECONDS )
+MILLISECONDS                            =                                       ( 1000 * MICROSECONDS )
+SECONDS                                 =                                       ( 1 )
+MINUTES                                 =                                       ( 60 * SECONDS )
+HOURS                                   =                                       ( 60 * HOURS )
+
+__byte__                                =                                       ( 1 )
+__word__                                =                                       ( 2 )
+__dword__                               =                                       ( 4 )
+__qword__                               =                                       ( 8 )
+
+Macro __pad__                           size*,                                  mode:0
+  Local k
+  k                                     =                                       ((( $ + size - 1 ) and ( 0 - size )) - $ )
+  If ( mode = 0 )
+    While ( k )
+      tmp                               __random__
+      If      ( k >= __qword__ )
+        k                               =                                       ( k - __qword__ )
+        dq                              tmp
+      Else If ( k >= __dword__ )
+        k                               =                                       ( k - __dword__ )
+        dd                              ( tmp and 0xffffffff )
+      Else If ( k >= __word__ )
+        k                               =                                       ( k - __word__ )
+        dw                              ( tmp and 0xffff )
+      Else If ( k >= __byte__ )
+        k                               =                                       ( k - __byte__ )
+        db                              ( tmp and 0xff )
+      End If
+    End While
+  Else If ( mode = 1 )
+    Repeat ( k )
+      nop
+    End Repeat
+  Else If ( mode = 2 )
+    db ( k )                            dup ( 0 )
+  End If
+End Macro
+Macro enumerate                         value,                                  consts&
+  Local k, item
+  k                                     =                                       value
+  Irp item, consts
+    item                                =                                       k
+    k                                   =                                       ( k + 1 )
+  End Irp
+End Macro
+
+Macro hb                                value&
+  Local item
+  Irp item, value
+    Repeat 2
+      char                              =                                       ( '0' + ((( item ) shr (  8 - ( % * 4 ))) and 0x0f ))
+      If ( char > '9' )
+        char                            =                                       ( char + 'a' - '9' - 1 )
+      End If
+      db                                char
+    End Repeat
+  End Irp
+End Macro
+Macro hw                                value&
+  Local item
+  Irp item, value
+    Repeat 4
+      char                              =                                       ( '0' + ((( item ) shr ( 16 - ( % * 4 ))) and 0x0f ))
+      If ( char > '9' )
+        char                            =                                       ( char + 'a' - '9' - 1 )
+      End If
+      db                                char
+    End Repeat
+  End Irp
+End Macro
+Macro hd                                value&
+  Local item
+  Irp item, value
+    Repeat 8
+      char                              =                                       ( '0' + ((( item ) shr ( 32 - ( % * 4 ))) and 0x0f ))
+      If ( char > '9' )
+        char                            =                                       ( char + 'a' - '9' - 1 )
+      End If
+      db                                char
+    End Repeat
+  End Irp
+End Macro
+Macro hq                                value&
+  Local item
+  Irp item, value
+    Repeat 16
+      char                              =                                       ( '0' + ((( item ) shr ( 64 - ( % * 4 ))) and 0x0f ))
+      If ( char > '9' )
+        char                            =                                       ( char + 'a' - '9' - 1 )
+      End If
+      db                                char
+    End Repeat
+  End Irp
+End Macro
+Macro hB                                value&
+  Local item
+  Irp item, value
+    Repeat 2
+      char                              =                                       ( '0' + ((( item ) shr (  8 - ( % * 4 ))) and 0x0f ))
+      If ( char > '9' )
+        char                            =                                       ( char + 'A' - '9' - 1 )
+      End If
+      db                                char
+    End Repeat
+  End Irp
+End Macro
+Macro hW                                value&
+  Local item
+  Irp item, value
+    Repeat 4
+      char                              =                                       ( '0' + ((( item ) shr ( 16 - ( % * 4 ))) and 0x0f ))
+      If ( char > '9' )
+        char                            =                                       ( char + 'A' - '9' - 1 )
+      End If
+      db                                char
+    End Repeat
+  End Irp
+End Macro
+Macro hD                                value&
+  Local item
+  Irp item, value
+    Repeat 8
+      char                              =                                       ( '0' + ((( item ) shr ( 32 - ( % * 4 ))) and 0x0f ))
+      If ( char > '9' )
+        char                            =                                       ( char + 'A' - '9' - 1 )
+      End If
+      db                                char
+    End Repeat
+  End Irp
+End Macro
+Macro hQ                                value&
+  Local item
+  Irp item, value
+    Repeat 16
+      char                              =                                       ( '0' + ((( item ) shr ( 64 - ( % * 4 ))) and 0x0f ))
+      If ( char > '9' )
+        char                            =                                       ( char + 'A' - '9' - 1 )
+      End If
+      db                                char
+    End Repeat
+  End Irp
+End Macro
+
+Macro fail                              function*,          message&
+  Postpone
+    display 10, 27, '[36m'
+  End Postpone
+  Irpv                                  item,                                   __file__
+    display '  ->', `item, 10
+  End Irpv
+  Err 10, '  [', function, '] ',  message
+  Break
+  Break
+  Break
+  Break
+  Break
+End Macro
+Struc open@@file                        nameOfFile
+  Local lblInputFile, lenInputFile
+  Virtual                               At null
+    lblInputFile::
+      file                              nameOfFile
+    lenInputFile                        =                                       ( $ )
+  End Virtual
+  .lbl                                  equ                                     lblInputFile
+  .size                                 =                                       lenInputFile
+  .offs                                 =                                       null
+End Struc
+
+Macro comment
+  Macro ?! line&
+    If ( `line = 'end comment' )
+      Purge ?
+    End If
+  End Macro
+End Macro

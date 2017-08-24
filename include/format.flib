@@ -1,0 +1,122 @@
+Include 'include/main.flib'
+Include 'include/display.flib'
+Include 'include/mememap.flib'
+Macro format@@addFormat                 theName*,                               theInit*,                               theStop*
+  format@@lstFormats                    Equ                                     theName,            theInit,            theStop
+End Macro
+Macro format                            someArguments&
+  Local item
+  Local theFormat, theRest, theName, theInit, theStop, theFinal
+  Macro import                          module*
+    Include 'include/' # module # '.flibg'
+  End Macro
+  Match                                 theFormat theRest,                      someArguments
+    Irpv                                item,                                   format@@lstFormats
+      Match                             theName =, theInit =, theStop,          item
+        Match                           `theName,                               `theFormat
+          format@@ptrOutput             =                                       ( format@@offsOutput )
+          displayOnNewLine '<format:', `theFormat, '>'
+          displayOnNewLine '{'
+          indentMore
+          theInit                       theRest
+          Macro theFinal
+            theStop
+          End Macro
+        End Match
+      End Match
+    End Irpv
+  Else Match                            theFormat,                              someArguments
+    Irpv                                item,                                   format@@lstFormats
+      Match                             theName =, theInit =, theStop,          item
+        Match                           `theName,                               `theFormat
+          format@@ptrOutput             =                                       ( format@@offsOutput )
+          displayOnNewLine '<format:', `theFormat, '>'
+          displayOnNewLine '{'
+          indentMore
+          theInit                       theRest
+          Macro theFinal
+            theStop
+          End Macro
+        End Match
+      End Match
+    End Irpv
+  Else
+    fail 'format', 'cannot match'
+  End Match
+  Macro end?.format!
+    indentLess
+    displayOnNewLine '}'
+    Match                               any,                                    format@@lstFormats
+      theFinal
+    End Match
+    Purge import
+    Purge end?.format
+  End Macro
+End Macro
+
+;:spaces are created like this:
+;>  format@@newSpace
+;>    ;some content
+;>  space = format@@endSpace
+;:format@@newSpace does not actually do alot, it just pushes the current offset in mainVirtual to a special stack.
+;:format@@endSpace pops this this offset and append everything from there to the current offset in mainVirtual to format.
+;:                the return-value is the offset of this space in format.
+;:space can be declared inside another, but will be a chained like this:
+;>  format@@newSpace
+;>    format@@newSpace
+;>    v1 format@@endSpace
+;>    format@@newSpace
+;>      format@@newSpace
+;>      v2 format@@endSpace
+;>    v3 format@@endSpace
+;>  v4 format@@endSpace
+;>> v1, v2, v3, v4
+;:( first closed first out )
+;( append spaces to format@@lblOutput )
+;{
+  format@@offsOutput                    =                                       ( $ - $$ )
+  format@@ptrOutput                     =                                       ( format@@offsOutput )
+  format@@ctrSpace                      =                                       ( null )
+  format@@lblOutput::
+    rb                                  ( format@@lenOutput )
+  Macro format@@newSpace                org:( null )
+    format@@ctrSpace                    =                                       ( format@@ctrSpace + 1 )
+    Virtual                             At org
+  End Macro
+  Struc format@@endSpace
+    Local buffer
+    If ( format@@ctrSpace <= 0 )
+      fail 'format@@endSpace', 'no open space left'
+    End If
+      .                                 =                                       ( format@@offsOutput )
+      .offs                             =                                       ( format@@offsOutput - format@@ptrOutput )
+      .size                             =                                       ( $@ - $$ )
+      .resv                             =                                       ( $  - $$ )
+      ;:if you want some '0x00' at the end, try this:
+      ;>  format@@newSpace
+      ;>    db 'Hello my World!', 10
+      ;>    rb 16 ;without the next line, this bytes will be trimmed.
+      ;>    db '' ;an empty string
+      ;>  format@@endSpace
+      format@@offsOutput                =                                       ( format@@offsOutput + .size )
+      Load                              buffer .size                            From ( $$ )
+      Store                             .size  buffer                           At   format@@lblOutput:( . )
+    End Virtual
+    format@@ctrSpace                    =                                       ( format@@ctrSpace - 1 )
+  End Struc
+  Macro format@@endSpace
+    Local void
+    void                                format@@endSpace
+  End Macro
+;}
+;( some known formats )
+;{
+  Include 'include/format/elf.flib'
+  Include 'include/format/tinafs.flib'
+  Include 'include/format/uf4.flib'
+  ;add custom formats here:
+;}
+Postpone
+  displayValue 'format@@lenOutput 0x', format@@lenOutput
+  format@@lenOutput                     =                                       format@@offsOutput
+End Postpone
