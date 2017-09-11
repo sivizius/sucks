@@ -1,0 +1,29 @@
+Include 'include/assembly/80486.flib'
+x86@@isaVersion                         =                                       x86@@iPentium
+use32
+Purge cmpxchg8b?, rdmsr?, rdtsc?, wrmrs?
+Macro cmpxchg8b?                        operand*
+  Local theOperand
+  lister@@putInstruction                'cmpxchg8b'
+  theOperand                            x86@@parseOperand                       operand
+  If (( theOperand.size = qword ) | ( theOperand.size = null ))
+    If ( theOperand.type = 'memory' )
+      x86@@emitInstruction              'cmpxchg8b', < 0x0f, 0xc7 >,  null,               1,                                      theOperand
+    Else
+      fail 'cmpxchg8b', 'invalid combination of operands'
+    End If
+  Else
+    fail 'cmpxchg8b', 'invalid operand size'
+  End If
+End Macro
+Irp                                     < name, opcode >, rdmsr,  0x32, rdtsc,  0x31, wrmrs,  0x30
+  Macro name?
+    lister@@putInstruction              `name
+    x86@@putOpcode                      0x0f, opcode
+  End Macro
+End Irp
+Macro x86@@killMySelf
+  x86@@killMySelf
+  Purge x86@@killMySelf
+  Purge cmpxchg8b?, rdmsr?, rdtsc?, wrmrs?
+End Macro

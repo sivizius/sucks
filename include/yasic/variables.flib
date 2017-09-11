@@ -120,7 +120,7 @@ Macro yasic@@newFunction                varName*,                               
         .yasic@@#varName#@addr          =                                       ( temp.offs )
         displayValue 'address 0x', .yasic@@#varName#@addr
         .yasic@@#varName#@size          =                                       ( temp.size )
-        Purge end.theType
+        Purge end.theType, return
       End Macro
     ;}
     ;( initally )
@@ -138,6 +138,11 @@ Macro yasic@@newFunction                varName*,                               
       displayOnNewLine '{'
       indentMore
       .yasic@@#varName#@symbols         Equ
+      Macro return                      value
+        If ( defined value )
+        Else
+        End If
+      End Macro
     ;}
     ;( parse parameters )
     ;{

@@ -1,493 +1,1609 @@
-Include 'include/main.flib'
-Include 'include/display.flib'
-x86@@toRegister                         =                                       0
-x86@@toMemory                           =                                       1
-x86@@regAX                              =                                       0
-x86@@regCX                              =                                       1
-x86@@regDX                              =                                       2
-x86@@regBX                              =                                       3
-x86@@regSP                              =                                       4
-x86@@regBP                              =                                       5
-x86@@regSI                              =                                       6
-x86@@regDI                              =                                       7
+;nothing to include here
+x86@@isaVersion                         =                                       x86@@i8086
+use16
 
-Macro x86@@code_8086                    ignore&
-  Local x86@@parseOperand, x86@@opImmediat, x86@@opMemory
-  Element x86.reg
-  Element x86.r8	: x86.reg + byte
-  Element al? : x86.r8    + 0
-  Element cl? : x86.r8    + 1
-  Element dl? : x86.r8    + 2
-  Element bl? : x86.r8    + 3
-  Element ah? : x86.r8    + 4
-  Element ch? : x86.r8    + 5
-  Element dh? : x86.r8    + 6
-  Element bh? : x86.r8    + 7
-  Element x86.r16 : x86.reg + word
-  Element ax? : x86.r16   + 0
-  Element cx? : x86.r16   + 1
-  Element dx? : x86.r16   + 2
-  Element bx? : x86.r16   + 3
-  Element sp? : x86.r16   + 4
-  Element bp? : x86.r16   + 5
-  Element si? : x86.r16   + 6
-  Element di? : x86.r16   + 7
-  Element x86.r32 : x86.reg + dword
-  Element eax? : x86.r32  + 0
-  Element ecx? : x86.r32  + 1
-  Element edx? : x86.r32  + 2
-  Element ebx? : x86.r32  + 3
-  Element esp? : x86.r32  + 4
-  Element ebp? : x86.r32  + 5
-  Element esi? : x86.r32  + 6
-  Element edi? : x86.r32  + 7
-  Element x86.r64 : x86.reg + qword
-  Element rax? : x86.r64  + 0
-  Element rcx? : x86.r64  + 1
-  Element rdx? : x86.r64  + 2
-  Element rbx? : x86.r64  + 3
-  Element rsp? : x86.r64  + 4
-  Element rbp? : x86.r64  + 5
-  Element rsi? : x86.r64  + 6
-  Element rdi? : x86.r64  + 7
-  Element x86.sreg
-  Element es? : x86.sreg  + 0
-  Element cs? : x86.sreg  + 1
-  Element ss? : x86.sreg  + 2
-  Element ds? : x86.sreg  + 3
-  Struc x86@@parseOperand               operand*
-    .type                               =                                       'invalid'
-    Match                               [ addr ],                               operand
-      .type                             =                                       'memory'
-      .size                             =                                       null
-      .address                          =                                       addr
-    Else Match                          length [ addr ],                        operand
-      .type                             =                                       'memory'
-      .size                             =                                       length
-      .address                          =                                       addr
-    Else Match                          sreg:offs,                              operand
-      .type                             =                                       'far away'
-      .size                             =                                       null
-    Else
-      If ( operand eq operand element 1 )
-        ;:operand                       = dx
-        ;:operand metadata 1            = x86.r16 + 2
-        ;:operand metadata 1 metadata 1 = x86.reg
-        ;:operand                       = es
-        ;:operand metadata 1            = x86.sreg + 0
-        If      (( operand metadata 1 ) relativeto x86.r8 )
-          .type                         =                                       'register'
-          .size                         =                                       byte
-          .register                     =                                       (( operand metadata 1 ) scale 0 )
-        Else If (( operand metadata 1 ) relativeto x86.r16 )
-          .type                         =                                       'register'
-          .size                         =                                       word
-          .register                     =                                       (( operand metadata 1 ) scale 0 )
-        Else If (( operand metadata 1 ) relativeto x86.sreg )
-          .type                         =                                       'segment register'
-          .register                     =                                       ( operand metadata scale 0 )
-        Else
-          fail 'x86@@parseOperand', 'invalid operand'
-        End If
-      Else
-        .type                           =                                       'immediat value'
-        .value                          =                                       operand
-        .size                           =                                       null
-      End If
-    End Match
-  End Struc
-  Macro x86@@opImmediat                 name,     base,                         dstSize,            srcValue,           dstRegister
-    If      (( dstSize = byte ) & ( srcValue >=   -128 ) & ( srcValue <=   256 ))
-      If ( dstRegister = x86@@regAX )
-        db base + 4
-      Else
-        db 0x80, ( 0xc0 or base or dstRegister )
-      End If
-      db srcValue
-    Else If (( dstSize = word ) & ( srcValue >=   -128 ) & ( srcValue <=   127 ))
-      db 0x83, ( 0xc0 or base or dstRegister )
-      db srcValue
-    Else If (( dstSize = word ) & ( srcValue >= -32768 ) & ( srcValue <= 65536 ))
-      If ( dstRegister = x86@@regAX )
-        db base + 5
-      Else
-        db 0x81, ( 0xc0 or base or dstRegister )
-      End If
-      dw srcValue
-    Else
-      fail `name, 'invalid immmediat operand size'
-    End If
-  End Macro
-  Macro x86@@opMemory                   name,     opMemory,           opRegister
-    Local theDisplacement, lenDisplacement, temp
-    If      (( elementsof opMemory ) = 0 )
-      ;> instr r1, [imm]
-      db (( opRegister shl 3 ) or 0x06 )
-      dw opMemory
-    Else
-      theDisplacement                   =                                       ( opMemory scale 0 )
-      If      ( theDisplacement = null )
-        lenDisplacement                 =                                       null
-      Else If (( theDisplacement >= -128 ) & ( theDisplacement <=   127 ))
-        lenDisplacement                 =                                       byte
-      Else If (( theDisplacement >=    0 ) & ( theDisplacement <= 65536 ))
-        lenDisplacement                 =                                       word
-      Else
-        fail `name, 'displacement must fit in a word'
-      End If
-      If      (( elementsof opMemory ) = 1 )
-        If      ((( opMemory metadata 1 ) scale 0 ) = x86@@regSI )
-          temp                          =                                       4
-        Else If ((( opMemory metadata 1 ) scale 0 ) = x86@@regDI )
-          temp                          =                                       5
-        Else If ((( opMemory metadata 1 ) scale 0 ) = x86@@regBP )
-          If ( lenDisplacement = null )
-            lenDisplacement             =                                       byte
-          End If
-          temp                          =                                       6
-        Else If ((( opMemory metadata 1 ) scale 0 ) = x86@@regBX )
-          temp                          =                                       7
-        End If
-      Else If (( elementsof opMemory ) = 2 )
-        If      (((( opMemory metadata 1 ) scale 0 ) = x86@@regSI ) | \
-                 ((( opMemory metadata 2 ) scale 0 ) = x86@@regSI ))
-          temp                          =                                       0
-        Else If (((( opMemory metadata 1 ) scale 0 ) = x86@@regDI ) | \
-                 ((( opMemory metadata 2 ) scale 0 ) = x86@@regDI ))
-          temp                          =                                       1
-        Else
-          fail `name, 'invalid combination of registers for address calculation'
-        End If
-        If      (((( opMemory metadata 1 ) scale 0 ) = x86@@regBP ) | \
-                 ((( opMemory metadata 2 ) scale 0 ) = x86@@regBP ))
-          temp                          =                                       temp + 2
-        Else If (((( opMemory metadata 1 ) scale 0 ) = x86@@regBX ) | \
-                 ((( opMemory metadata 2 ) scale 0 ) = x86@@regBX ))
-        Else
-          fail `name, 'invalid combination of registers for address calculation'
-        End If
-      Else
-        fail `name, 'address cannot be calculated with more than two registers'
-      End If
-      db (( lenDisplacement shl 6 ) or ( opRegister shl 3 ) or temp )
-      If      ( lenDisplacement = byte )
-        db theDisplacement
-      Else If ( lenDisplacement = word )
-        dw theDisplacement
-      End if
-    End If
-  End Macro
-  Irp                                   < name, base >, \
+Irp                                     < name, base >, \
                                         add,    0x00,   or,     0x08,   \
                                         adc,    0x10,   sbb,    0x18,   \
                                         and,    0x20,   sub,    0x28,   \
                                         xor,    0x30,   cmp,    0x38
-    Macro name?                         dst*,                                   src*
-      Local size, srcOperand, dstOperand
-      srcOperand                        x86@@parseOperand                       src
-      dstOperand                        x86@@parseOperand                       dst
-      size                              =                                       ( srcOperand.size or dstOperand.size )
-      If      ( size = null )
-        fail `name, 'operand size not specified'
-      Else If (( size <> byte ) & ( size <> word ))
-        fail `name, 'operand sizes do not match'
-      Else
-        If ( size > word )
-          fail `name, 'invalid operand size'
-        End If
-        If      (( srcOperand.type = 'register' ) & ( dstOperand.type = 'register' ))
-          ;> instr  r1, r2
-          If      ( size = byte )
-            db base + 0
-          Else If ( size = word )
-            db base + 1
-          End If
-          db (( 0xc0 ) or ( srcOperand.register shl 3 ) or ( dstOperand.register ))
-        Else If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'immediat value' ))
-          ;> instr r1, imm
-          x86@@opImmediat               name,     base,               dstOperand.size,    srcOperand.value,   dstOperand.register
-        Else If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'memory' ))
-          ;> instr r1, [mem]
-          If      ( size = byte )
-            db ( base or x86@@toRegister or 0 )
-          Else If ( size = word )
-            db ( base or x86@@toRegister or 1 )
-          End If
-          x86@@opMemory                 name,     srcOperand.address, dstOperand.register
-        Else If (( dstOperand.type = 'memory' )   & ( srcOperand.type = 'register' ))
-          ;> instr [mem], r2
-          If      ( size = byte )
-            db ( base or x86@@toRegister or 0 )
-          Else If ( size = word )
-            db ( base or x86@@toRegister or 1 )
-          End If
-          x86@@opMemory                 name,     dstOperand.address, srcOperand.register
-        Else
-          fail `name, 'invalid compination of operands'
-        End If
-      End If
-    End Macro
-  End Irp
-  Irp                                   < name, base >,         \
-                                        not,    2, neg,     3,  \
-                                        mul,    4, imul,    5,  \
-                                        div,    6, idiv,    7
-    Macro name?                         operand
-      Local theOperand
-      theOperand                        x86@@parseOperand                       operand
-      If ( theOperand.size )
-        If      ( theOperand.size = byte )
-          db 0xf6
-        Else If ( theOperand.size = word )
-          db 0xf7
-        End If
-        If      ( theOperand.type = 'register' )
-          ;>  instr r1
-          db ( 0xc0 or ( base shl 3 ) or theOperand.register )
-        Else If ( theOperand.type = 'memory' )
-          ;>  instr [mem]
-          x86@@opMemory                 name,     theOperand.address, base
-        Else
-          fail `name, 'invalid operand'
-        End If
-      Else
-        fail `name, 'operand size not specified'
-      End If
-    End Macro
-  End Irp
-  Irp                                   < name, prefix >, \
-                                        repne,  0xf2, repnz,  0xf2, \
-                                        repe,   0xf3, repz,   0xf3, \
-                                        lock,   0xf0
-    Macro name?                         instr
-      db prefix
-      instr
-    End Macro
-  End Irp
-  Irp                                   < name, instr >, \
-                                        daa,    0x27, das,    0x2f, aaa,    0x37, aas,    0x3f, \
-                                        cbw,    0x98, cwd,    0x99, pushf,  0x9c, popf,   0x9d, \
-                                        sahf,   0x9e, lahf,   0x9f, movsb,  0xa4, movsw,  0xa5, \
-                                        cmpsb,  0xa6, cmpsw,  0xa7, stosb,  0xaa, stosw,  0xab, \
-                                        lodsb,  0xac, lodsw,  0xad, scasb,  0xae, scasw,  0xaf, \
-                                        int3,   0xcc, into,   0xce, iret,   0xcf, salc,   0xd6, \
-                                        xlat,   0xd7, wait,   0xdb, hlt,    0xf4, cmc,    0xf5, \
-                                        clc,    0xf8, stc,    0xf9, cli,    0xfa, sti,    0xfb, \
-                                        cld,    0xfc, std,    0xfd
-    Macro name?
-      db instr
-    End Macro
-    ;salc is an undocumented opcode.
-    ;< int3 could be polymorphic >
-  End Irp
-  Irp                                   < name, instr >,  \
-                                        aam,    0xd4, aad, 0xd5
-    Macro name?                         base:( 10 )
-      db instr, base
-    End Macro
-    ;aam and aad are documented without arguments and with an implied value of 10.
-  End Irp
-  Irp                                   < name, instr >,            \
-                                        jo,     0x70, \
-                                        jno,    0x71, \
-                                        jb,     0x72, jnae,   0x72, \
-                                        jnb,    0x73, jae,    0x73, \
-                                        je,     0x74, jz,     0x74, \
-                                        jne,    0x75, jnz,    0x75, \
-                                        jbe,    0x76, jna,    0x76, \
-                                        jnbe,   0x77, ja,     0x77, \
-                                        js,     0x78, \
-                                        jns,    0x79, \
-                                        jp,     0x7a, jpe,    0x7a, \
-                                        jnp,    0x7b, jpo,    0x7b, \
-                                        jl,     0x7c, jnge,   0x7c, \
-                                        jnl,    0x7d, jge,    0x7d, \
-                                        jle,    0x7e, jng,    0x7e, \
-                                        jnle,   0x7f, jg,     0x7f, \
-                                        loopnz, 0xe0, loopne, 0xe0, \
-                                        loopz,  0xe1, loope,  0xe1, \
-                                        loop,   0xe2, \
-                                        jcxz,   0xe3
-    Macro name?                         address*
-      Local theOperand, offset
-      theOperand                        x86@@parseOperand                       address
-      If ( theOperand.type = 'immediat value' )
-        offset                          =                                       ( theOperand.value - $ - 2 )
-        If (( offset >= -128 ) & ( offset <=   127 ))
-          db instr, offset
-        Else
-          fail `name, 'offset must fit in a byte'
-        End If
-      Else
-        fail `name, 'invalid operand'
-      End If
-    End Macro
-  End Irp
-  Macro nop?                            bytes:( 1 )
-    If      ( bytes = 1 )
-      xchg ax, ax
-    Else If ( bytes = 2 )
-      xchg al, al
-    Else
-      fail 'nop', 'not yet encodable'
-    End If
-  End Macro
-  Macro mov?                            dst*,                                   src*
-    Local size, srcOperand, dstOperand
+  Macro name?                           dst*,                                   src*
+    Local size, srcOperand, dstOperand, coin, length, opcode
+    lister@@putInstruction              `name
     srcOperand                          x86@@parseOperand                       src
     dstOperand                          x86@@parseOperand                       dst
     size                                =                                       ( srcOperand.size or dstOperand.size )
     If      ( size = null )
       fail `name, 'operand size not specified'
-    Else If (( size <> byte ) & ( size <> word ))
-      fail `name, 'operand sizes do not match'
-    Else If ( 0 )
-    End If
-  End Macro
-  Macro int?                            number*
-    db 0xcd, number
-  End Macro
-  Macro xchg?                           dst*,                                   src*
-      Local size, srcOperand, dstOperand
-      srcOperand                        x86@@parseOperand                       src
-      dstOperand                        x86@@parseOperand                       dst
-      size                              =                                       ( srcOperand.size or dstOperand.size )
-      If      ( size = null )
-        fail 'xchg', 'operand size not specified'
-      Else If (( size <> byte ) & ( size <> word ))
-        fail 'xchg', 'operand sizes do not match'
-      Else
-        If      (( dstOperand.type = 'register' ) & ( srcOperand.type = 'register' ))
-          If      (( srcOperand.register = x86@@regAX ) & ( size = word ))
-            db ( 0x90 or dstOperand.register )
-          Else If (( dstOperand.register = x86@@regAX ) & ( size = word ))
-            db ( 0x90 or srcOperand.register )
-          Else If ( size = byte )
-            db 0x86
-            ;< could be polymorphic >
-            db (( 0xc0 ) or ( srcOperand.register shl 3 ) or ( dstOperand.register ))
-          Else If ( size = word )
-            db 0x87
-            ;< could be polymorphic >
-            db (( 0xc0 ) or ( srcOperand.register shl 3 ) or ( dstOperand.register ))
+    Else If (( size <> byte ) & ( size <> word ) & (( size <> dword ) | ( x86@@isaVersion < x86@@i80386 )))
+      fail `name, 'invalid operand sizes'
+    Else
+      If      (( dstOperand.type = 'register' ) & ( dstOperand.register = x86@@regAX ) & ( srcOperand.type = 'immediate value' ))
+        If      (( size = byte  ))
+          x86@@putOpcode                ( base or 4 or 0 )
+          If (( srcOperand.value >= -0x80 ) & ( srcOperand.value <= 0xff ))
+            db srcOperand.value
+            lister@@putOperand          'al'
+            lister@@putOperand          byte ( srcOperand.value )
+          Else
+            fail `name, 'immediate value out of bonds'
           End If
-        Else If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'memory' ))
-          ;> instr r1, [mem]
-          If      ( size = byte )
-            db 0x86
-          Else If ( size = word )
-            db 0x87
+        Else If (( size = word  ))
+          If ( x86@@defaultOperandSize = 32 )
+            x86@@addPrefix 0x66
           End If
-          x86@@opMemory                 'xchg',   srcOperand.address, dstOperand.register
-        Else If (( dstOperand.type = 'memory' )   & ( srcOperand.type = 'register' ))
-          ;> instr [mem], r2
-          If      ( size = byte )
-            db 0x86
-          Else If ( size = word )
-            db 0x87
+          x86@@putOpcode                ( base or 4 or 1 )
+          If (( srcOperand.value >= -0x8000 ) & ( srcOperand.value <= 0xffff ))
+            dw srcOperand.value
+            lister@@putOperand          'ax'
+            lister@@putOperand          word ( srcOperand.value )
+          Else
+            fail `name, 'immediate value out of bonds'
           End If
-          x86@@opMemory                 'xchg',   dstOperand.address, srcOperand.register
+        Else If (( size = dword ) & ( x86@@isaVersion >= x86@@i80386 ))
+          If ( x86@@defaultOperandSize = 16 )
+            x86@@addPrefix 0x66
+          End If
+          x86@@putOpcode                ( base or 4 or 1 )
+          If (( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ))
+            dd srcOperand.value
+            lister@@putOperand          'eax'
+            lister@@putOperand          dword ( srcOperand.value )
+          Else
+            fail `name, 'immediate value out of bonds'
+          End If
         Else
-          fail 'xchg', 'invalid compination of operands'
+          fail `name, 'invalid operand size'
         End If
-      End If
-  End Macro
-  Macro in?                             value*,                                 port*
-    Local srcOperand, dstOperand
-    srcOperand                          x86@@parseOperand                       value
-    dstOperand                          x86@@parseOperand                       port
-    If      ( srcOperand.size = null )
-      fail 'in', 'operand size not specified'
-    Else If (( srcOperand.type <> 'register' ) & ( srcOperand.register <> x86@@regAX ))
-      fail 'in', 'source operand must be al/ax'
-    End If
-    If      ( dstOperand.type = 'immediat value' )
-      If      ( srcOperand.size = byte )
-        db 0xe4
-      Else If ( srcOperand.size = word )
-        db 0xe5
-      End If
-      db port
-    Else If ( dstOperand.type = 'register' )
-      If ( dstOperand.register = x86@@regDX )
-        If      ( srcOperand.size = byte )
-          db 0xec
-        Else If ( srcOperand.size = word )
-          db 0xed
+      Else If (( dstOperand.type = 'register' | dstOperand.type = 'memory' ) & ( srcOperand.type = 'immediate value' ))
+        ;> instr reg, imm
+        If      ( size = byte )
+          If (( srcOperand.value >=   -0x80 ) & ( srcOperand.value <= 0xff ))
+            opcode                      =                                       ( 0x80 or base or 0 )         ;s=0, w=0
+            length                      =                                       byte
+          Else
+            fail `name, 'immediate value out of bonds'
+          End If
+        Else If (                   ( srcOperand.value >=       -0x80 ) & ( srcOperand.value <=       0x7f ))
+          If ( x86@@isaVersion >= x86@@i80386 )
+            coin                        random@@random                          4
+          Else
+            coin                        random@@random                          2
+          End If
+          If      ( random@@randomiseOpcodeSize & coin = 1 )
+            opcode                      =                                       ( 0x80 or base or 1 )         ;s=1, w=1
+            length                      =                                       word
+          Else If ( random@@randomiseOpcodeSize & coin = 2 )
+            opcode                      =                                       ( 0x80 or base or 1 )         ;s=1, w=1
+            length                      =                                       dword
+          Else ;(( coin = 0 ) | ( coin = 3 ))
+            opcode                      =                                       ( 0x80 or base or 3 )         ;s=0, w=1
+            length                      =                                       byte
+          End If
+        Else If (( size = word  ) & ( srcOperand.value >=     -0x8000 ) & ( srcOperand.value <=     0xffff ))
+          opcode                      =                                         ( 0x80 or base or 1 )         ;s=1, w=1
+          length                        =                                       word
+        Else If (( size = dword ) & ( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ) & ( x86@@isaVersion >= x86@@i80386 ))
+          opcode                        =                                       ( 0x80 or base or 1 )         ;s=1, w=1
+          length                        =                                       dword
+        Else
+          fail `name, 'immediate value out of bonds'
         End If
+        x86@@emitInstruction            `name,    opcode,             size,               null,                         dstOperand
+        If      (( size = byte  ))
+          lister@@putOperand            byte ( srcOperand.value  )
+        Else If (( size = word  ))
+          lister@@putOperand            word ( srcOperand.value  )
+        Else If (( size = dword ) & ( x86@@isaVersion >= x86@@i80386 ))
+          lister@@putOperand            dword ( srcOperand.value )
+        Else
+          fail `name, 'this should never happen'
+        End If
+        If      ( length = byte  )
+          db srcOperand.value
+        Else If ( length = word  )
+          dw srcOperand.value
+        Else If ( length = dword )
+          dd srcOperand.value
+        Else
+          fail `name, 'this should never happen'
+        End If
+      Else If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'register' | srcOperand.type = 'memory' ))
+        lister@@putOperand              dstOperand.symbol
+        If (( srcOperand.type = 'register' ) & ( random@@randomiseOpcodes ))
+          coin                          random@@random
+          coin                          =                                       ( coin and 2 )
+        Else
+          coin                          =                                       x86@@toRegister               ;= 2
+        End If
+        If      ( size = byte )
+          opcode                        =                                       ( base or coin or 0 )
+        Else
+          opcode                        =                                       ( base or coin or 1 )
+        End If
+        If ( coin )
+          ;> instr reg, [mem]
+          ;> instr reg, reg
+          x86@@emitInstruction          `name,    opcode,             size,               dstOperand.register,          srcOperand
+        Else
+          ;> instr reg, reg
+          x86@@emitInstruction          `name,    opcode,             size,               srcOperand.register,          dstOperand
+        End If
+      Else If (( dstOperand.type = 'memory' )   & ( srcOperand.type = 'register' ))
+        ;> instr [mem], reg
+        If      ( size = byte )
+          opcode                        =                                       ( base or x86@@toMemory or 0 )
+        Else
+          opcode                        =                                       ( base or x86@@toMemory or 1 )
+        End If
+        x86@@emitInstruction            `name,    opcode,             size,               srcOperand.register,          dstOperand
+        lister@@putOperand              srcOperand.symbol
       Else
-        fail 'in', 'invalid register for port'
+        fail `nname, 'invalid compination of operands'
+      End If
+    End If
+  End Macro
+End Irp
+Irp                                     < name, base >,         \
+                                        not,    2, neg,     3,  \
+                                        mul,    4,              \
+                                        div,    6, idiv,    7
+  Macro name?                           operand*
+    Local theOperand, opcode
+    lister@@putInstruction              `name
+    theOperand                          x86@@parseOperand                       operand
+    If ( theOperand.size )
+      If (( theOperand.type = 'memory' ) | ( theOperand.type = 'register' ))
+        If      (theOperand.size = byte )
+          opcode                        =                                       ( 0xf6 or 0 )
+        Else If (( theOperand.size = word ) | (( theOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 )))
+          opcode                        =                                       ( 0xf6 or 1 )
+        End If
+        x86@@emitInstruction            `name,    opcode,             theOperand.size,    base,                         theOperand
+      Else
+        fail `name, 'invalid operand'
       End If
     Else
-      fail 'in', 'invalid operand for port'
+      fail `name, 'operand size not specified'
     End If
   End Macro
-  Macro out?                            port*,                                  value*
-    Local srcOperand, dstOperand
-    srcOperand                          x86@@parseOperand                       value
-    dstOperand                          x86@@parseOperand                       port
-    If      ( srcOperand.size = null )
-      fail 'out', 'operand size not specified'
-    Else If (( srcOperand.type <> 'register' ) & ( srcOperand.register <> x86@@regAX ))
-      fail 'out', 'source operand must be al/ax'
-    End If
-    If      ( dstOperand.type = 'immediat value' )
-      If      ( srcOperand.size = byte )
-        db 0xe6
-      Else If ( srcOperand.size = word )
-        db 0xe7
-      End If
-      db port
-    Else If ( dstOperand.type = 'register' )
-      If ( dstOperand.register = x86@@regDX )
-        If      ( srcOperand.size = byte )
-          db 0xee
-        Else If ( srcOperand.size = word )
-          db 0xef
+End Irp
+Macro imul?                             dst*,                                   src,                                    multiplier
+  Local dstOperand, srcOperand, theOperand
+  Local coin, opcode, size
+  lister@@putInstruction                'imul'
+  dstOperand                            x86@@parseOperand                       dst
+  If (( dstOperand.size = byte ) | ( dstOperand.size = word ) | (( dstOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 )))
+    Match                               ,                                       src
+      If (( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' ))
+        If ( dstOperand.size = byte )
+          x86@@emitInstruction          'imul',   ( 0xf6 or 0 ),      dstOperand.size,    5,                            dstOperand
+        Else
+          x86@@emitInstruction          'imul',   ( 0xf6 or 1 ),      dstOperand.size,    5,                            dstOperand
         End If
       Else
-        fail 'out', 'invalid register for port'
+        fail 'imul', 'invalid operand'
+      End If
+    Else Match                          ,                                       multiplier
+      srcOperand                        x86@@parseOperand                       src
+      If      (( dstOperand.type = 'register' ) & ( dstOperand.register = x86@@regAX )  & ( dstOperand.size = word ) & ( srcOperand.size = byte ))
+        lister@@putOperand              'ax'
+        If (( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' ))
+          x86@@emitInstruction          'imul',   ( 0xf6 or 0 ),      srcOperand.size,    5,                            srcOperand
+        Else
+          fail 'imul', 'invalid operand'
+        End If
+      Else If ( (( dstOperand.type = 'dx:ax'   ) & ( srcOperand.size = word  ))| \
+                (( dstOperand.type = 'edx:eax' ) & ( srcOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 )))
+        If (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' ))
+          lister@@putOperand            dstOperand.type
+          x86@@emitInstruction          'imul',   ( 0xf6 or 1 ),      srcOperand.size,    5,                            srcOperand
+        Else
+          fail 'imul', 'invalid operand!!'
+        End If
+      Else If (( dstOperand.type = 'register' ) & (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' )) & ( x86@@isaVersion >= x86@@i80386 ))
+        size                            =                                       ( srcOperand.size or dstOperand.size )
+        If (( size = word ) | ( size = dword ))
+          lister@@putOperand            dstOperand.symbol
+          x86@@emitInstruction          'imul',   < 0x0f, 0xaf >,     size,               dstOperand.register,          srcOperand
+        Else
+          fail 'imul', 'invalid operand sizes'
+        End If
+      Else
+        fail 'imul', 'not implemented yet'
       End If
     Else
-      fail 'out', 'invalid operand for port'
-    End If
-  End Macro
-  Macro elf@@codeFinaliser
-    Purge add?, or?, adc?, sbb?, and?, sub?, xor?, cmp?
-    Purge not?, neg?, mul?, imul?, div?, idiv?
-    Purge mov?
-    Purge in?, out?, xchg?, nop?, int?, aam?, aad?
-    Purge movsb?, movsw?, cmpsb?, cmpsw?, scasb?, scasw?, lodsb?, lodsw?, stosb?, stosw?
-    Purge daa?, das?, aaa?, aas?, cbw?, cwd?, pushf?, popf?, sahf?, lahf?, int3?, into?, iret?, xlat?, wait?, lock?, hlt?, cmc?, clc?, stc?, cli?, sti?, cld?, std?, salc?
-  End Macro
+      If ( dstOperand.size = srcOperand.size )
+        srcOperand                      x86@@parseOperand                       src
+        size                            =                                       dstOperand.size
+        If ( x86@@isaVersion >= x86@@i80186 )
+          If ( dstOperand.type = 'register' )
+            lister@@putOperand          dstOperand.symbol
+            theOperand                  x86@@parseOperand                       multiplier
+            If ( theOperand.type = 'immediate value' )
+              If (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' ))
+                If      (( theOperand.value >= -0x80 ) & ( theOperand.value <= 0x7f ))
+                  opcode                =                                       0x6b
+                  size                  =                                       byte
+                Else If ( (( size = word  ) & (( theOperand.value and     0xffff ) = theOperand.value )) | \
+                          (( size = dword ) & (( theOperand.value and 0xffffffff ) = theOperand.value )))
+                  opcode                =                                       0x69
+                Else
+                  fail 'imul', 'multiplier out of bonds'
+                End If
+                x86@@emitInstruction    'imul',   opcode,             dstOperand.size,    dstOperand.register,          srcOperand
+                lister@@putOperand      size   theOperand.value
+                emit                    size:( theOperand.value )
+              Else
+                fail 'imul', 'source operand must be either a register or memory operand'
+              End If
+            Else
+              fail 'imul', 'multiplier must be an immediate value'
+            End If
+          Else
+            fail 'imul', 'destination operand must be a register'
+          End If
+        Else
+          fail 'imul', '`imul reg, reg/mem, imm` was not added before i80186'
+        End If
+      Else
+        fail 'imul', 'operand sizes do not match'
+      End If
+    End Match
+  Else
+    fail 'imul', 'invalid operand size'
+  End If
 End Macro
-;elf@@addCodeSpace                       8086,                                   x86@@code_8086
 
-x86@@code_8086
-  neg     al
-  neg     ax
-  neg     word [ si ]
-  neg     word [ si + 0x42 ]
-  neg     word [ si + 0x1337 ]
-  neg     word [ bx + di ]
-  neg     word [ bx + di + 0x42 ]
-  neg     word [ bx + di + 0x1337 ]
-  jo      $
-  jnz     $
-  jb      $
-  jnge    $
-  jp      $
-  xchg    ax, ax
-  xchg    bx, ax
-  xchg    dx, cx
-  xchg    al, al
-  in      ax, 123
-  in      ax, dx
-  in      al, 123
-  in      al, dx
-  out     123, ax
-  out     dx, ax
-  out     123, al
-  out     dx, al
-  iret
-elf@@codeFinaliser
+Irp                                     < name, prefix >, \
+                                        repne,  0xf2, repnz,  0xf2, \
+                                        repe,   0xf3, repz,   0xf3, \
+                                        rep,    0xf3, lock,   0xf0
+  Macro name?                           instr&
+    lister@@putPrefix                   `name
+    x86@@addPrefix                      prefix
+    instr
+  End Macro
+End Irp
+Irp                                     < name, opcode >, \
+                                        daa,    0x27, das,    0x2f, aaa,    0x37, aas,    0x3f, \
+                                        cbw,    0x98, cwd,    0x99, pushf,  0x9c, popf,   0x9d, \
+                                        sahf,   0x9e, lahf,   0x9f, movsb,  0xa4, cmpsb,  0xa6, \
+                                        stosb,  0xaa, lodsb,  0xac, scasb,  0xae, int3,   0xcc, \
+                                        into,   0xce, iret,   0xcf, salc,   0xd6, xlat,   0xd7, \
+                                        wait,   0xdb, hlt,    0xf4, cmc,    0xf5, clc,    0xf8, \
+                                        stc,    0xf9, cli,    0xfa, sti,    0xfb, cld,    0xfc, \
+                                        std,    0xfd
+  Macro name?
+    lister@@putInstruction              `name
+    x86@@putOpcode                      opcode
+  End Macro
+  ;salc is an undocumented opcode.
+  ;< int3 could be polymorphic >
+End Irp
+Irp                                     < name, opcode >, movsw,  0xa5, cmpsw,  0xa7, stosw,  0xab, lodsw,  0xad, scasw,  0xaf
+  Macro name?
+    If ( x86@@defaultOperandSize = 32 )
+      x86@@addPrefix 0x66
+    End If
+    lister@@putInstruction              `name
+    x86@@putOpcode                      opcode
+  End Macro
+End Irp
+Irp                                     < name, opcode >,  \
+                                        aam,    0xd4, aad, 0xd5
+  Macro name?                           base:( 10 )
+    lister@@putInstruction              `name
+    lister@@putOperand                  byte ( base )
+    x86@@putOpcode                      opcode, base
+  End Macro
+  ;aam and aad are documented without arguments and with an implied value of 10.
+End Irp
+Irp                                     < name, opcode >,           \
+                                        loopnz, 0xe0, loopne, 0xe0, \
+                                        loopz,  0xe1, loope,  0xe1, \
+                                        loop,   0xe2
+  Macro name?                           operand*
+    Local theOperand, offset
+    lister@@putInstruction              `name
+    theOperand                          x86@@parseOperand                       operand
+    If ( theOperand.type = 'immediate value' )
+      offset                            =                                       ( theOperand.value - $ )
+      If      (( offset >= -0x80 + 2 ) & ( offset <= 0x7f + 2 ))
+        x86@@putOpcode                  opcode,                                 ( offset - 2 )
+        lister@@putOperand              qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
+      Else
+        fail `name, 'displacement out of bonds'
+      End If
+    Else
+      fail `name, 'invalid operand'
+    End If
+  End Macro
+End Irp
+Macro jcxz?                             operand*
+  Local theOperand, offset
+  lister@@putInstruction                'jcxz'
+  theOperand                            x86@@parseOperand                       operand
+  If ( theOperand.type = 'immediate value' )
+    If ( x86@@defaultAddressSize = 32 )
+      x86@@addPrefix                    0x67
+    End If
+    offset                              =                                       ( theOperand.value - $ )
+    If      (( offset >= -0x80 + 2 ) & ( offset <= 0x7f + 2 ))
+      x86@@putOpcode                    opcode,                                 ( offset - 2 )
+      lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
+    Else
+      fail 'jcxz', 'displacement out of bonds'
+    End If
+  Else
+    fail 'jcxz', 'invalid operand'
+  End If
+End Macro
+Irp                                     < name, opcode >,           \
+                                        jo,     0x00, \
+                                        jno,    0x01, \
+                                        jb,     0x02, jnae,   0x02, \
+                                        jnb,    0x03, jae,    0x03, \
+                                        je,     0x04, jz,     0x04, \
+                                        jne,    0x05, jnz,    0x05, \
+                                        jbe,    0x06, jna,    0x06, \
+                                        jnbe,   0x07, ja,     0x07, \
+                                        js,     0x08, \
+                                        jns,    0x09, \
+                                        jp,     0x0a, jpe,    0x0a, \
+                                        jnp,    0x0b, jpo,    0x0b, \
+                                        jl,     0x0c, jnge,   0x0c, \
+                                        jnl,    0x0d, jge,    0x0d, \
+                                        jle,    0x0e, jng,    0x0e, \
+                                        jnle,   0x0f, jg,     0x0f
+  Macro name?                           operand*
+    Local theOperand, offset, coin
+    lister@@putInstruction              `name
+    theOperand                          x86@@parseOperand                       operand
+    If ( theOperand.type = 'immediate value' )
+      offset                            =                                       ( theOperand.value - $ )
+      If ( random@@randomiseOpcodeSize )
+        coin                            random@@random                          2
+      Else
+        coin                            =                                       true
+      End If
+      If      (( offset >=       -0x80 + 2 ) & ( offset <=       0x7f + 2 ) & ( coin ))
+        x86@@putOpcode                  ( 0x70 or opcode )
+        db ( offset - 2 )
+        lister@@putOperand              qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
+      Else If (( offset >=     -0x8000 + 4 ) & ( offset <=     0x7fff + 4 ) & ( x86@@defaultAddressSize = 16 ) & ( x86@@isaVersion >= x86@@i80386 ))
+        x86@@putOpcode                  0x0f, ( 0x80 or opcode )
+        dw ( offset - 4 )
+        lister@@putOperand              qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
+      Else If (( offset >= -0x80000000 + 6 ) & ( offset <= 0x7fffffff + 6 ) & ( x86@@defaultAddressSize = 32 ) & ( x86@@isaVersion >= x86@@i80386 ))
+        x86@@putOpcode                  0x0f, ( 0x80 or opcode )
+        dd ( offset - 6 )
+        lister@@putOperand              qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
+      Else
+        fail `name, 'displacement out of bonds'
+      End If
+    Else
+      fail `name, 'invalid operand'
+    End If
+  End Macro
+End Irp
+Irp                                     < name, base >,\
+                                        rol,    0,  ror,    1, \
+                                        rcl,    2,  rcr,    3, \
+                                        shl,    4,  sal,    4, \
+                                        shr,    5,  sar,    7
+  Macro name?                           source*,                                multiplier*
+    Local srcOperand, dstOperand, opcode, length
+    lister@@putInstruction              `name
+    srcOperand                          x86@@parseOperand                       source
+    dstOperand                          x86@@parseOperand                       multiplier
+    If      (( dstOperand.type = 'register' )       & ( dstOperand.register = x86@@regCX ) & ( dstOperand.size = byte ))
+      opcode                            =                                       0xd2
+      length                            =                                       nil
+    Else If ( dstOperand.type = 'immediate value' )
+      If (( random@@randomiseOpcodeSize ) & ( x86@@isaVersion >= x86@@i80186 ))
+        coin                            random@@random                          2
+      Else
+        coin                            =                                       true
+      End If
+      If (( dstOperand.value = 1 ) & ( coin ))
+        opcode                          =                                       0xd0
+        length                          =                                       null
+      Else If (( dstOperand.value >= 0x00 ) & ( dstOperand.value <= 0xff ) & ( x86@@isaVersion >= x86@@i80186 ))
+        opcode                          =                                       0xc0
+        length                          =                                       byte
+      Else
+        fail `name, 'invalid counter'
+      End If
+    Else
+      fail `name, 'invalid multiplier operand'
+    End If
+    If      ( srcOperand.size = null )
+      fail `name, 'operand size not specified'
+    Else If ( srcOperand.size = byte )
+      opcode                            =                                       ( opcode or 0 )
+    Else If (( srcOperand.size = word ) | ( srcOperand.size = dword ))
+      opcode                            =                                       ( opcode or 1 )
+    Else
+      fail `name, 'invalid operand size'
+    End If
+    If      (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' ))
+      x86@@emitInstruction              `name,    opcode,             srcOperand.size,    base,                         srcOperand
+      If      ( length = nil )
+        lister@@putOperand              'cl'
+      Else If ( length = null )
+        lister@@putOperand              '1'
+      Else
+        lister@@putOperand              byte ( dstOperand.value )
+        db dstOperand.value
+      End If
+    Else
+      fail `name, 'invalid operand'
+    End If
+  End Macro
+End Irp
+Irp                                     < name, base >, \
+                                        inc,    0, dec,    1
+  Macro name?                           operand
+    Local theOperand, coin, opcode
+    lister@@putInstruction              `name
+    theOperand                          x86@@parseOperand                       operand
+    If ( random@@randomiseOpcodeSize )
+      coin                              random@@random                          2
+    Else
+      coin                              =                                       true
+    End If
+    If      (( theOperand.type = 'register' ) & ( coin ) & ( theOperand.size <> byte ))
+      If      (( theOperand.size = word  )                  )
+        If ( x86@@defaultOperandSize = 32 )
+          x86@@addPrefix                0x66
+        End If
+      Else If (( theOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 ) )
+        If ( x86@@defaultOperandSize = 16 )
+          x86@@addPrefix                0x66
+        End If
+      Else
+        fail `name, 'invalid operand size'
+      End If
+      x86@@putOpcode                    ( 0x40 or ( base shl 3 ) or theOperand.register )
+      lister@@putOperand                theOperand.symbol
+    Else If (( theOperand.type = 'register' ) | ( theOperand.type = 'memory' ))
+      If      ( theOperand.size = null )
+        fail `name, 'operand size not specified'
+      Else If ( theOperand.size = byte )
+        opcode                          =                                       ( 0xfe or 0 )
+      Else If (( theOperand.size = word ) | (( theOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 )))
+        opcode                          =                                       ( 0xfe or 1 )
+      Else
+        fail `name, 'invalid operand size'
+      End If
+      x86@@emitInstruction              `name,    opcode,             theOperand.size,    base,                         theOperand
+    Else
+      fail `name, 'invalid operand'
+    End If
+  End Macro
+End Irp
+Irp                                     < name, opcode >, \
+                                        lds,    0xc5, les,    0xc4
+  Macro name?                           dst*,                                   src*
+    Local srcOperand, dstOperand
+    lister@@putInstruction              `name
+    srcOperand                          x86@@parseOperand                       src
+    dstOperand                          x86@@parseOperand                       dst
+    If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'memory' ))
+      If ( srcOperand.size = null )
+        srcOperand.size                 =                                       ( dstOperand.size + 2 )
+      End If
+      If ((( dstOperand.size = word  ) & ( srcOperand.size = dword )) | \
+          (( dstOperand.size = dword ) & ( srcOperand.size = pword ) & ( x86@@isaVersion >= x86@@i80386 )))
+        lister@@putOperand              dstOperand.symbol
+        x86@@emitInstruction            `name,    opcode,             dstOperand.size,    dstOperand.register,          srcOperand
+      Else
+        fail `name, 'invalid operand size'
+      End If
+    Else
+      fail `name, 'invalid operands'
+    End If
+  End Macro
+End Irp
+Macro lea?                              dst*,                                   src*
+  Local srcOperand, dstOperand, length
+  lister@@putInstruction                'lea'
+  srcOperand                            x86@@parseOperand                       src
+  dstOperand                            x86@@parseOperand                       dst
+  If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'memory' ))
+    If ((( dstOperand.size = word )) | (( dstOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 )))
+      If ((( dstOperand.size = word ) & ( x86@@defaultOperandSize = 32 )) | (( dstOperand.size = dword ) & ( x86@@defaultOperandSize = 16 )))
+        x86@@addPrefix                  0x66
+      End If
+      lister@@putOperand                dstOperand.symbol
+      x86@@emitInstruction              'lea',    0x8d,               null,               dstOperand.register,          srcOperand
+    Else
+      fail 'push', 'invalid operand size'
+    End If
+  Else
+    fail 'lea', 'invalid operands'
+  End If
+End Macro
+Macro escape?                           dst*,                                   src*
+  Local srcOperand, dstOperand, opcode
+  lister@@putInstruction                'escape'
+  srcOperand                            x86@@parseOperand                       src
+  dstOperand                            x86@@parseOperand                       dst
+  If (( dstOperand.type = 'immediate value' ) & (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' )))
+    If (( dstOperand.value and 0x3f ) = dstOperand.value )
+      opcode                            =                                       ( 0xd8 or ( dstOperand.value shr 3 ))
+      lister@@putOperand                byte ( dstOperand.value )
+      x86@@emitInstruction              'escape', opcode,             word,               ( dstOperand.value and 0x7 ), srcOperand
+    Else
+      fail 'escape', 'invalid opcode'
+    End If
+  Else
+    fail 'escape', 'invalid operand'
+  End If
+End Macro
+Macro call?                             operand*
+  Local theOperand, offset
+  lister@@putInstruction                'call'
+  theOperand                            x86@@parseOperand                       operand
+  If      (( theOperand.type = 'immediate value' ) & ( x86@@defaultAddressSize = 16 ))
+    offset                              =                                       ( theOperand.value - $ - 3 )
+    If      (( offset >=     -0x8000 ) & ( offset <=     0x7fff ))
+      x86@@putOpcode                    0xe8
+      dw offset
+      lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
+    End If
+  Else If (( theOperand.type = 'immediate value' ) & ( x86@@defaultAddressSize = 32 ))
+    offset                              =                                       ( theOperand.value - $ - 5 )
+    If      (( offset >= -0x80000000 ) & ( offset <= 0x7fffffff ))
+      x86@@putOpcode                    0xe8
+      dd offset
+      lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
+    End If
+  Else If (( theOperand.type = 'pointer' ) & ( x86@@defaultAddressSize = 16 ))
+    x86@@putOpcode                      0x9a
+    If (( theOperand.address and     0xffff ) = theOperand.address )
+      dw theOperand.address
+      dw theOperand.segment
+      lister@@putOperand                word ( theOperand.segment ), ':', word ( theOperand.address )
+    Else
+      fail 'call', 'displacement out of bonds (16 bit)'
+    End If
+  Else If (( theOperand.type = 'pointer' ) & ( x86@@defaultAddressSize = 32 ))
+    x86@@putOpcode                      0x9a
+    If (( theOperand.address and 0xffffffff ) = theOperand.address )
+      dd theOperand.address
+      dw theOperand.segment
+      lister@@putOperand                word ( theOperand.segment ), ':', dword ( theOperand.address )
+    Else
+      fail 'call', 'displacement out of bonds (16 bit)'
+    End If
+  Else If ((( theOperand.type = 'memory' ) | ( theOperand.type = 'register' )) & ( theOperand.size = word  ) & ( x86@@defaultAddressSize = 16 ))
+    x86@@emitInstruction                'call',   0xff,               word,               2,                            theOperand
+  Else If ((( theOperand.type = 'memory' ) | ( theOperand.type = 'register' )) & ( theOperand.size = dword ) & ( x86@@defaultAddressSize = 32 ))
+    x86@@emitInstruction                'call',   0xff,               dword,              2,                            theOperand
+  Else If (( theOperand.type = 'memory' ) & ( theOperand.size = dword ) & ( x86@@defaultAddressSize = 16 ))
+    x86@@emitInstruction                'call',   0xff,               word,               3,                            theOperand
+  Else If (( theOperand.type = 'memory' ) & ( theOperand.size = pword ) & ( x86@@defaultAddressSize = 32 ))
+    x86@@emitInstruction                'call',   0xff,               dword,              3,                            theOperand
+  Else
+    fail 'call', 'invalid operand'
+  End If
+End Macro
+Irp                                     < name, opcode >, retf,   0xca, retn,   0xc2, ret,    0xc2
+  Macro name?                           adjust:( null )
+    Local theOperand
+    lister@@putInstruction              `name
+    theOperand                          x86@@parseOperand                       adjust
+    If ( theOperand.type = 'immediate value' )
+      If ( theOperand.value )
+        x86@@putOpcode                  opcode
+        If (( theOperand.value >= 0x0000 ) & ( theOperand.value <= 0xffff ))
+          dw theOperand.value
+          lister@@putOperand            word ( theOperand.value )
+        Else
+          fail `name, 'invalid operand size'
+        End If
+      Else
+        db ( opcode + 1 )
+      End If
+    Else
+      fail `name, 'invalid operand'
+    End If
+  End Macro
+End Irp
+Macro jmp?                              operand*
+  Local theOperand, offset, coin
+  lister@@putInstruction                'jmp'
+  theOperand                            x86@@parseOperand                       operand
+  If      ( theOperand.type = 'immediate value' )
+    offset                              =                                       ( theOperand.value - $ )
+    If ( random@@randomiseOpcodeSize )
+      coin                              random@@random                          2
+    Else
+      coin                              =                                       true
+    End If
+    If      (( offset >=       -0x80 + 2 ) & ( offset <=       0x7f + 2 ) & ( coin ))
+      x86@@putOpcode                    0xeb
+      db ( offset - 2 )
+      lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
+    Else If (( offset >=     -0x8000 + 3 ) & ( offset <=     0x7fff + 3 ) & ( x86@@defaultAddressSize = 16 ))
+      x86@@putOpcode                    0xe9
+      dw ( offset - 3 )
+      lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
+    Else If (( offset >= -0x80000000 + 5 ) & ( offset <= 0x7fffffff + 5 ) & ( x86@@defaultAddressSize = 32 ))
+      x86@@putOpcode                    0xe9
+      dd ( offset - 5 )
+      lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
+    Else
+      fail 'jmp', 'displacement out of bonds'
+    End If
+  Else If (( theOperand.type = 'pointer' ) & ( x86@@defaultAddressSize = 16 ))
+    x86@@putOpcode                      0xea
+    If (( theOperand.address and     0xffff ) = theOperand.address )
+      dw theOperand.address
+      dw theOperand.segment
+      lister@@putOperand                word ( theOperand.segment ), ':', word ( theOperand.address )
+    Else
+      fail 'call', 'displacement out of bonds (16 bit)'
+    End If
+  Else If (( theOperand.type = 'pointer' ) & ( x86@@defaultAddressSize = 32 ))
+    x86@@putOpcode                      0xea
+    If (( theOperand.address and 0xffffffff ) = theOperand.address )
+      dd theOperand.address
+      dw theOperand.segment
+      lister@@putOperand                word ( theOperand.segment ), ':', dword ( theOperand.address )
+    Else
+      fail 'call', 'displacement out of bonds (16 bit)'
+    End If
+  Else If ((( theOperand.type = 'memory' ) | ( theOperand.type = 'register' )) & ( theOperand.size = word  ) & ( x86@@defaultAddressSize = 16 ))
+    x86@@emitInstruction                'jmp',    0xff,               word,               4,                            theOperand
+  Else If ((( theOperand.type = 'memory' ) | ( theOperand.type = 'register' )) & ( theOperand.size = dword ) & ( x86@@defaultAddressSize = 32 ))
+    x86@@emitInstruction                'jmp',    0xff,               dword,              4,                            theOperand
+  Else If (( theOperand.type = 'memory' ) & ( theOperand.size = dword ) & ( x86@@defaultAddressSize = 16 ))
+    x86@@emitInstruction                'jmp',    0xff,               word,               5,                            theOperand
+  Else If (( theOperand.type = 'memory' ) & ( theOperand.size = pword ) & ( x86@@defaultAddressSize = 32 ))
+    x86@@emitInstruction                'jmp',    0xff,               dword,              5,                            theOperand
+  Else If ((( theOperand.type = 'memory' ) | ( theOperand.type = 'register' )) & ( theOperand.size = word ))
+    x86@@emitInstruction                'call',   0xff,               word,               4,                            theOperand
+  Else If (( theOperand.type = 'memory' ) & ( theOperand.size = dword ))
+    x86@@emitInstruction                'call',   0xff,               word,               5,                            theOperand
+  Else
+    fail 'jmp', 'invalid operand'
+  End If
+End Macro
+Macro cmp?                              dst*,                                   src*
+  Local srcOperand, dstOperand, length, coin, opcode
+  lister@@putInstruction                'cmp'
+  srcOperand                            x86@@parseOperand                       src
+  dstOperand                            x86@@parseOperand                       dst
+  size                                  =                                       ( srcOperand.size or dstOperand.size )
+  If (( size = byte ) | ( size = word ) | (( size = dword ) & ( x86@@isaVersion >= x86@@i80386 )))
+    If      ((( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' )) & (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' )))
+      If      ( dstOperand.type = 'register' )
+        If (( srcOperand.type = 'register' ) & ( random@@randomiseOpcodes ))
+          ;`cmp r1, r2` is actually encoded as `cmp r1 → r2` or `cmp r2 ← r1` with direction bit 0x02
+          ;both reg and r/m can be registers, but only r/m memory, so this does not work with memory operand
+          coin                          random@@random
+          coin                          =                                       ( coin and 2 )                ;= 0 / 2
+        Else
+          coin                          =                                       x86@@toRegister               ;= 2
+        End If
+      Else If ( srcOperand.type = 'register' )
+        coin                            =                                       x86@@toMemory                 ;= 0
+      Else
+        fail 'cmp', 'source and destination operands cannot be both memory'
+      End If
+      If      ( size = byte )
+        opcode                          =                                       ( 0x38 or coin or 0 )
+      Else If (( size = word ) | ( size = dword ))
+        opcode                          =                                       ( 0x38 or coin or 1 )
+      End If
+      If ( coin )
+        lister@@putOperand              dstOperand.symbol
+        x86@@emitInstruction            'cmp',    opcode,             size,               dstOperand.register,          srcOperand
+      Else
+        x86@@emitInstruction            'cmp',    opcode,             size,               srcOperand.register,          dstOperand
+        lister@@putOperand              srcOperand.symbol
+      End If
+    Else If ( srcOperand.type = 'immediate value' )
+      If ( random@@randomiseOpcodeSize )
+        coin                            random@@random                          2
+      Else
+        coin                            =                                       true
+      End If
+      If      (( dstOperand.type = 'register' ) & ( dstOperand.register = x86@@regAX ) & ( coin ))
+        If      (( size = byte  ) & ( srcOperand.value >=       -0x80 ) & ( srcOperand.value <=       0xff ))
+          x86@@putOpcode                ( 0x3c or 0 )
+          lister@@putOperand            'al'
+          db srcOperand.value
+          lister@@putOperand            byte  ( srcOperand.value )
+        Else If (( size = word  ) & ( srcOperand.value >=     -0x8000 ) & ( srcOperand.value <=     0xffff ))
+          If ( x86@@defaultOperandSize = 32 )
+            x86@@addPrefix              0x66
+          End If
+          x86@@putOpcode                ( 0x3c or 1 )
+          lister@@putOperand            'ax'
+          dw srcOperand.value
+          lister@@putOperand            word  ( srcOperand.value )
+        Else If (( size = dword ) & ( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ) & ( x86@@isaVersion >= x86@@i80386 ))
+          If ( x86@@defaultOperandSize = 16 )
+            x86@@addPrefix              0x66
+          End If
+          x86@@putOpcode                ( 0x3c or 1 )
+          lister@@putOperand            'eax'
+          dd srcOperand.value
+          lister@@putOperand            dword ( srcOperand.value )
+        Else
+          fail 'cmp', 'invalid operand size'
+        End If
+      Else If (( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' ))
+        If      ( size = byte )
+          If (( srcOperand.value >= -0x80 ) & ( srcOperand.value <= 0xff ))
+            opcode                      =                                       ( 0x80 or 0 )                 ;s=0, w=0
+            length                      =                                       byte
+          Else
+            fail 'cmp', 'immediate value out of bonds (8 bit)'
+          End If
+        Else
+          If      (                   ( srcOperand.value >=       -0x80 ) & ( srcOperand.value <=       0x7f ))
+            coin                        random@@random                          2
+            If ( random@@randomiseOpcodeSize & coin )
+              opcode                    =                                       ( 0x80 or 1 )                 ;s=0, w=1
+              length                    =                                       size
+            Else
+              opcode                    =                                       ( 0x80 or 3 )                 ;s=1, w=1
+              length                    =                                       byte
+            End If
+          Else If (( size = word  ) & ( srcOperand.value >=     -0x8000 ) & ( srcOperand.value <=     0xffff ))
+            opcode                      =                                       ( 0x80 or 1 )                 ;s=0, w=1
+            length                      =                                       word
+          Else If (( size = dword ) & ( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ))
+            opcode                      =                                       ( 0x80 or 1 )                 ;s=0, w=1
+            length                      =                                       dword
+          Else
+            fail 'cmp', 'immediate value out of bonds'
+          End If
+        End If
+        x86@@emitInstruction            'cmp',    opcode,             size,               7,                            dstOperand
+        lister@@putOperand              size ( srcOperand.value )
+        emit                            length:( srcOperand.value )
+      Else
+        fail 'cmp', 'invalid operands'
+      End If
+    Else
+      fail 'cmp', 'invalid combination of operands'
+    End If
+  Else
+    fail 'cmp', 'invalid operand size'
+  End If
+End Macro
+Macro test?                             dst*,                                   src*
+  Local srcOperand, dstOperand, length, coin, opcode
+  lister@@putInstruction                'test'
+  srcOperand                            x86@@parseOperand                       src
+  dstOperand                            x86@@parseOperand                       dst
+  size                                  =                                       ( srcOperand.size or dstOperand.size )
+  If ( random@@randomiseOpcodeSize )
+    coin                                random@@random                          2
+  Else
+    coin                                =                                       true
+  End If
+  If (( size = byte ) | ( size = word ) | (( size = dword ) & ( x86@@isaVersion >= x86@@i80386 )))
+    If      ((( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' )) & (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' )))
+      If      ( dstOperand.type = 'register' )
+        If (( srcOperand.type = 'register' ) & ( random@@randomiseOpcodes ))
+          ;`test r1, r2` is actually encoded as `test r1 → r2` or `test r2 ← r1` with direction bit 0x02
+          ;both reg and r/m can be registers, but only r/m memory, so this does not work with memory operand
+          ;`test r1, r2` is the same as `test r2, r1`, but encoded differently
+          coin                          random@@random                          2
+        Else
+          coin                          =                                       true
+        End If
+      Else If ( srcOperand.type = 'register' )
+        coin                            =                                       false
+      Else
+        fail 'test', 'source and destination operands cannot be both memory'
+      End If
+      If      ( size = byte )
+        opcode                          =                                       ( 0x84 or 0 )
+      Else If (( size = word ) | ( size = dword ))
+        opcode                          =                                       ( 0x84 or 1 )
+      End If
+      If ( coin )
+        lister@@putOperand              dstOperand.symbol
+        x86@@emitInstruction            'test',   opcode,             size,               dstOperand.register,          srcOperand
+      Else
+        x86@@emitInstruction            'test',   opcode,             size,               srcOperand.register,          dstOperand
+        lister@@putOperand              srcOperand.symbol
+      End If
+    Else If ( srcOperand.type = 'immediate value' )
+      If      (( dstOperand.type = 'register' ) & ( dstOperand.register = x86@@regAX ) & ( coin ))
+        If      (( size = byte )  & ( srcOperand.value >=       -0x80 ) & ( srcOperand.value <=       0xff ))
+          x86@@putOpcode                ( 0xa8 or 0 )
+          lister@@putOperand            'al'
+          db srcOperand.value
+          lister@@putOperand            byte ( srcOperand.value )
+        Else If (( size = word  ) & ( srcOperand.value >=     -0x8000 ) & ( srcOperand.value <=     0xffff ))
+          If ( x86@@defaultOperandSize = 32 )
+            x86@@addPrefix              0x66
+          End If
+          x86@@putOpcode                ( 0xa8 or 1 )
+          lister@@putOperand            'ax'
+          dw srcOperand.value
+          lister@@putOperand            word  ( srcOperand.value )
+        Else If (( size = dword ) & ( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ))
+          If ( x86@@defaultOperandSize = 16 )
+            x86@@addPrefix              0x66
+          End If
+          x86@@putOpcode                ( 0xa8 or 1 )
+          lister@@putOperand            'eax'
+          dd srcOperand.value
+          lister@@putOperand            dword ( srcOperand.value )
+        Else
+          fail 'test', 'immediate value out of bonds'
+        End If
+      Else If (( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' ))
+        If      ( size = byte )
+          If (( srcOperand.value >=      -0x80 ) & ( srcOperand.value <=   0xff ))
+            opcode                      =                                       ( 0xf6 or 0 )                 ;s=0, w=0
+            length                      =                                       byte
+          Else
+            fail 'test', 'immediate value out of bonds (8 bit)'
+          End If
+        Else
+          If      (                   ( srcOperand.value >=       -0x80 ) & ( srcOperand.value <=       0x7f ))
+            coin                        random@@random                          2
+            If ( random@@randomiseOpcodeSize & coin )
+              opcode                    =                                       ( 0xf6 or 1 )                 ;s=0, w=1
+              length                    =                                       size
+            Else
+              opcode                    =                                       ( 0xf6 or 3 )                 ;s=1, w=1
+              length                    =                                       byte
+            End If
+          Else If (( size = word  ) & ( srcOperand.value >=     -0x8000 ) & ( srcOperand.value <=     0xffff ))
+            opcode                      =                                       ( 0xf6 or 1 )                 ;s=0, w=1
+            length                      =                                       word
+          Else If (( size = dword ) & ( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ))
+            opcode                      =                                       ( 0xf6 or 1 )                 ;s=0, w=1
+            length                      =                                       dword
+          Else
+            fail 'test', 'immediate value out of bonds'
+          End If
+        End If
+        x86@@emitInstruction            'test',   opcode,             size,               0,                            dstOperand
+        lister@@putOperand              size ( srcOperand.value )
+        emit                            length:( srcOperand.value )
+      Else
+        fail 'test', 'destination operand must be register or memory operand'
+      End If
+    Else
+      fail 'test', 'invalid combination of operands'
+    End If
+  Else
+    fail 'test', 'invalid operand size'
+  End If
+End Macro
+Macro push?                             operand*
+  Local theOperand, coin, prefix
+  lister@@putInstruction                'push'
+  theOperand                            x86@@parseOperand                       operand
+  If      (( theOperand.type = 'register' ) | ( theOperand.type = 'memory' ))
+    prefix                              =                                       false
+    If      ( theOperand.size = word )
+      If ( x86@@defaultOperandSize = 32 )
+        prefix                          =                                       true
+      End If
+    Else If (( theOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 ))
+      If ( x86@@defaultOperandSize = 16 )
+        prefix                          =                                       true
+      End If
+    Else
+      fail 'push', 'invalid operand size'
+    End If
+    If ( theOperand.type = 'register' )
+      If ( random@@randomiseOpcodeSize )
+        coin                            random@@random                          2
+      Else
+        coin                            =                                       true
+      End If
+    Else
+      coin                              =                                       false
+    End If
+    If ( coin )
+      ;short form
+      If ( prefix )
+        x86@@addPrefix                  0x66
+      End If
+      x86@@putOpcode                    ( 0x50 or theOperand.register )
+      lister@@putOperand                theOperand.symbol
+    Else
+      x86@@emitInstruction              'push',   0xff,               theOperand.size,    6,                            theOperand
+    End If
+  Else If ( theOperand.type = 'segment register' )
+    If (( random@@randomiseOpcodeSize ) & ( x86@@isaVersion >= x86@@i80386 ))
+      coin                              random@@random                          2
+    Else
+      coin                              =                                       true
+    End If
+    If      (( theOperand.register <= x86@@sregDS ) & ( coin ))
+      x86@@putOpcode                    ( 0x06 or ( theOperand.register shl 3 ))
+    Else If (( theOperand.register <= x86@@sregGS ) & ( x86@@isaVersion >= x86@@i80386 ))
+      x86@@putOpcode                    0x0f, ( 0x80 or ( theOperand.register shl 3 ))
+    Else
+      fail 'push', 'invalid segment register'
+    End If
+    lister@@putOperand                  theOperand.symbol
+  Else If (( theOperand.type = 'immediate value' ) & ( x86@@isaVersion >= x86@@i80186 ))
+    If      (( theOperand.value >=       -0x80 ) & ( theOperand.value <=       0xff ) & ( coin ))
+      x86@@putOpcode                    ( 0x68 or 2 )
+      db theOperand.value
+      lister@@putOperand                byte ( theOperand.value )
+    Else If (( theOperand.value >=     -0x8000 ) & ( theOperand.value <=     0xffff ) & (( x86@@defaultOperandSize = 16 ) | ( theOperand.size = word )))
+      If ( x86@@defaultOperandSize = 32 )
+        x86@@addPrefix                  0x66
+      End If
+      x86@@putOpcode                    ( 0x68 or 0 )
+      dw theOperand.value
+      lister@@putOperand                word ( theOperand.value )
+    Else If (( theOperand.value >= -0x80000000 ) & ( theOperand.value <= 0xffffffff ))
+      If ( theOperand.size = word )
+        fail 'push', 'immediate size is not word'
+      End If
+      If ( x86@@defaultOperandSize = 16 )
+        x86@@addPrefix                  0x66
+      End If
+      x86@@putOpcode                    ( 0x68 or 0 )
+      dd theOperand.value
+      lister@@putOperand                dword ( theOperand.value )
+    Else
+      fail 'push', 'invalid operand size'
+    End If
+  Else
+    fail 'push', 'invalid operand'
+  End If
+End Macro
+Macro pop?                              operand*
+  Local theOperand, coin
+  lister@@putInstruction                'pop'
+  theOperand                            x86@@parseOperand                       operand
+  If ( random@@randomiseOpcodeSize )
+    coin                                random@@random                          2
+  Else
+    coin                                =                                       true
+  End If
+  If      (( theOperand.type = 'register' ) | ( theOperand.type = 'memory' ))
+    prefix                              =                                       false
+    If      ( theOperand.size = word )
+      If ( x86@@defaultOperandSize = 32 )
+        prefix                          =                                       true
+      End If
+    Else If (( theOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 ))
+      If ( x86@@defaultOperandSize = 16 )
+        prefix                          =                                       true
+      End If
+    Else
+      fail 'push', 'invalid operand size'
+    End If
+    If ( theOperand.type = 'register' )
+      If ( random@@randomiseOpcodeSize )
+        coin                            random@@random                          2
+      Else
+        coin                            =                                       true
+      End If
+    Else
+      coin                              =                                       false
+    End If
+    If ( coin )
+      ;short form
+      If ( prefix )
+        x86@@addPrefix                  0x66
+      End If
+      x86@@putOpcode                    ( 0x58 or theOperand.register )
+      lister@@putOperand                theOperand.symbol
+    Else
+      x86@@emitInstruction              'pop',    0x8f,               theOperand.size,    0,                            theOperand
+    End If
+  Else If ( theOperand.type = 'segment register' )
+    If (( theOperand.register = x86@@sregCS ) & ( x86@@isaVersion >= x86@@i80186 ))
+      fail 'pop', '`pop cs` is only allowed in 8086'
+    Else
+      If (( random@@randomiseOpcodeSize ) & ( x86@@isaVersion >= x86@@i80386 ))
+        coin                            random@@random                          2
+      Else
+        coin                            =                                       true
+      End If
+      If      (( theOperand.register <= x86@@sregDS ) & ( coin ))
+        x86@@putOpcode                  ( 0x07 or ( theOperand.register shl 3 ))
+      Else If (( theOperand.register <= x86@@sregGS ) & ( x86@@isaVersion >= x86@@i80386 ))
+        x86@@putOpcode                  0x0f, ( 0x81 or ( theOperand.register shl 3 ))
+      Else
+        fail 'push', 'invalid segment register'
+      End If
+      lister@@putOperand                theOperand.symbol
+    End If
+  Else
+    fail 'pop', 'invalid operand'
+  End If
+End Macro
+Macro mov?                              dst*,                                   src*
+  Local size, srcOperand, dstOperand, coin, opcode, length, prefix
+  lister@@putInstruction                'mov'
+  srcOperand                            x86@@parseOperand                       src
+  dstOperand                            x86@@parseOperand                       dst
+  size                                  =                                       ( srcOperand.size or dstOperand.size )
+  ;changes opcode size if src/dst = ax and src/dst = mem OR if dst = reg and src = reg
+  If ( random@@randomiseOpcodeSize )
+    coin                                random@@random                          2
+  Else
+    coin                                =                                       true
+  End If
+  If (( size = byte ) | ( size = word ) | (( size = dword ) & ( x86@@isaVersion >= x86@@i80386 )))
+    If      (( dstOperand.type = 'memory'   ) &  ( srcOperand.type = 'register' ) & ( srcOperand.register = x86@@regAX ) & (( elementsof dstOperand.address ) = 0 ) & ( coin ))
+      If      ( x86@@defaultAddressSize = 16 )
+        If (( dstOperand.address and     0xffff ) = dstOperand.address )
+          length                        =                                       word
+        Else
+          fail 'mov', 'offset must be a positive 16 bit value'
+        End If
+      Else If ( x86@@defaultAddressSize = 32 )
+        If (( dstOperand.address and 0xffffffff ) = dstOperand.address )
+          length                        =                                       dword
+        Else
+          fail 'mov', 'offset must be a positive 32 bit value'
+        End If
+      Else
+        fail 'mov', 'invalid default address size'
+      End If
+      If      ( size = byte  )
+        opcode                          =                                       ( 0xa2 or coin or 0 )
+        x86@@segmentAddressing          'mov',               dstOperand.segment,'byte  ',           length,             dstOperand.address
+        lister@@putOperand              'al'
+      Else If ( size = word  )
+        If ( x86@@defaultOperandSize = 32 )
+          x86@@addPrefix                0x66
+        End If
+        opcode                          =                                       ( 0xa2 or coin or 1 )
+        x86@@segmentAddressing          'mov',               dstOperand.segment,'word  ',           length,             dstOperand.address
+        lister@@putOperand              'ax'
+      Else If ( size = dword )
+        If ( x86@@defaultOperandSize = 16 )
+          x86@@addPrefix                0x66
+        End If
+        opcode                          =                                       ( 0xa2 or coin or 1 )
+        x86@@segmentAddressing          'mov',               dstOperand.segment,'dword ',           length,             dstOperand.address
+        lister@@putOperand              'eax'
+      End If
+      x86@@putOpcode                    opcode
+      emit length:( dstOperand.address )
+    Else If (( dstOperand.type = 'register' ) &  ( srcOperand.type = 'memory'   ) & ( dstOperand.register = x86@@regAX ) & (( elementsof srcOperand.address ) = 0 ) & ( coin ))
+      If      ( x86@@defaultAddressSize = 16 )
+        If (( srcOperand.address and     0xffff ) = srcOperand.address )
+          length                        =                                       word
+        Else
+          fail 'mov', 'offset must be a positive 16 bit value'
+        End If
+      Else If ( x86@@defaultAddressSize = 32 )
+        If (( srcOperand.address and 0xffffffff ) = srcOperand.address )
+          length                        =                                       dword
+        Else
+          fail 'mov', 'offset must be a positive 32 bit value'
+        End If
+      Else
+        fail 'mov', 'invalid default address size'
+      End If
+      If      ( size = byte  )
+        opcode                          =                                       ( 0xa0 or 0 )
+        lister@@putOperand              'al'
+        x86@@segmentAddressing          'mov',               srcOperand.segment,'byte  ',           length,             srcOperand.address
+      Else If ( size = word  )
+        If ( x86@@defaultOperandSize = 32 )
+          x86@@addPrefix                0x66
+        End If
+        opcode                          =                                       ( 0xa0 or 1 )
+        lister@@putOperand              'ax'
+        x86@@segmentAddressing          'mov',               srcOperand.segment,'word  ',           length,             srcOperand.address
+      Else If ( size = dword )
+        If ( x86@@defaultOperandSize = 16 )
+          x86@@addPrefix                0x66
+        End If
+        opcode                          =                                       ( 0xa0 or 1 )
+        lister@@putOperand              'eax'
+        x86@@segmentAddressing          'mov',               srcOperand.segment,'dword ',           length,             srcOperand.address
+      End If
+      x86@@putOpcode                    opcode
+      emit length:( srcOperand.address )
+    Else If ((( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' )) & (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' )))
+      If      ( dstOperand.type = 'register' )
+        If (( srcOperand.type = 'register' ) & ( random@@randomiseOpcodes ))
+          ;`mov r1, r2` is actually encoded as `mov r1 → r2` or `mov r2 ← r1` with direction bit 0x02
+          ;both reg and r/m can be registers, but only r/m memory, so this does not work with memory operand
+          coin                          random@@random
+          coin                          =                                       ( coin and 2 )                ;= 0 / 2
+        Else
+          coin                          =                                       x86@@toRegister               ;= 2
+        End If
+      Else If ( srcOperand.type = 'register' )
+        coin                            =                                       x86@@toMemory                 ;= 0
+      Else
+        fail 'mov', 'source and destination operands cannot be both memory'
+      End If
+      If      ( size = byte )
+        opcode                          =                                       ( 0x88 or coin or 0 )
+      Else If (( size = word ) | ( size = dword ))
+        opcode                          =                                       ( 0x88 or coin or 1 )
+      End If
+      If ( coin )
+        lister@@putOperand              dstOperand.symbol
+        x86@@emitInstruction            'mov',    opcode,             size,               dstOperand.register,          srcOperand
+      Else
+        x86@@emitInstruction            'mov',    opcode,             size,               srcOperand.register,          dstOperand
+        lister@@putOperand              srcOperand.symbol
+      End If
+    Else If ((( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' ))      & ( srcOperand.type = 'immediate value'    ))
+      prefix                            =                                       false
+      If      ( size = byte  )
+        opcode                          =                                       ( 0 )
+      Else If ( size = word  )
+        If ( x86@@defaultOperandSize = 32 )
+          prefix                        =                                       true
+        End If
+        opcode                          =                                       ( 1 )
+      Else If ( size = dword )
+        If ( x86@@defaultOperandSize = 16 )
+          prefix                        =                                       true
+        End If
+        opcode                          =                                       ( 1 )
+      End If
+      If (( coin ) & ( dstOperand.type = 'register' ))
+        ;short form
+        If ( prefix )
+          x86@@addPrefix                0x66
+        End If
+        x86@@putOpcode                  ( 0xb0 or ( opcode * 8 ) or dstOperand.register )
+      Else
+        x86@@emitInstruction            'mov',    ( 0xc6 or opcode ), size,               null,                         dstOperand
+      End If
+      If      (( size = byte  ) & ( srcOperand.value >=       -0x80 ) & ( srcOperand.value <=       0xff ))
+        db srcOperand.value
+        lister@@putOperand              byte  ( srcOperand.value )
+      Else If (( size = word  ) & ( srcOperand.value >=     -0x8000 ) & ( srcOperand.value <=     0xffff ))
+        dw srcOperand.value
+        lister@@putOperand              word  ( srcOperand.value )
+      Else If (( size = dword ) & ( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ))
+        dd srcOperand.value
+        lister@@putOperand              dword ( srcOperand.value )
+      Else
+        fail 'mov', 'immediate value out of bonds'
+      End If
+    Else If (( dstOperand.type = 'segment register' ) | ( srcOperand.type = 'segment register' ))
+      If      (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' ) & (( dstOperand.register <= x86@@sregDS ) | ( x86@@isaVersion >= x86@@i80386 )))
+        lister@@putOperand              dstOperand.symbol
+        x86@@emitInstruction            'mov',    0x8e,               null,               dstOperand.register,          srcOperand
+      Else If (( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' ) & (( srcOperand.register <= x86@@sregDS ) | ( x86@@isaVersion >= x86@@i80386 )))
+        x86@@emitInstruction            'mov',    0x8c,               null,               srcOperand.register,          dstOperand
+        lister@@putOperand              srcOperand.symbol
+      Else
+        fail 'mov', 'invalid combination of operands and segment register'
+      End If
+    Else If ((( dstOperand.type = 'control register' ) | ( srcOperand.type = 'control register' )) & ( x86@@isaVersion >= x86@@i80386 ))
+      If      ( srcOperand.type = 'register' )
+        If (( dstOperand.register >= 0 ) & ( dstOperand.register < 8 ))
+          lister@@putOperand              dstOperand.symbol
+          x86@@emitInstruction            'mov',    < 0x0f, 0x22 >,     null,               dstOperand.register,          srcOperand
+        Else
+          fail 'mov', 'invalid control register'
+        End If
+      Else If ( dstOperand.type = 'register' )
+        If (( srcOperand.register >= 0 ) & ( srcOperand.register < 8 ))
+          x86@@emitInstruction          'mov',    < 0x0f, 0x20 >,     null,               srcOperand.register,          dstOperand
+          lister@@putOperand            srcOperand.symbol
+        Else
+          fail 'mov', 'invalid control register'
+        End If
+      Else
+        fail 'mov', 'invalid combination of operands and control register'
+      End If
+    Else If ((( dstOperand.type = 'debug register' ) | ( srcOperand.type = 'debug register' )) & ( x86@@isaVersion >= x86@@i80386 ))
+      If      ( srcOperand.type = 'register' )
+        If (( dstOperand.register >= 0 ) & ( dstOperand.register < 8 ))
+          lister@@putOperand              dstOperand.symbol
+          x86@@emitInstruction            'mov',    < 0x0f, 0x23 >,     null,               dstOperand.register,          srcOperand
+        Else
+          fail 'mov', 'invalid debug register'
+        End If
+      Else If ( dstOperand.type = 'register' )
+        If (( srcOperand.register >= 0 ) & ( srcOperand.register < 8 ))
+          x86@@emitInstruction          'mov',    < 0x0f, 0x21 >,     null,               srcOperand.register,          dstOperand
+          lister@@putOperand            srcOperand.symbol
+        Else
+          fail 'mov', 'invalid debug register'
+        End If
+      Else
+        fail 'mov', 'invalid combination of operands and debug register'
+      End If
+    Else If ((( dstOperand.type = 'test register' ) | ( srcOperand.type = 'test register' )) & (( x86@@isaVersion = x86@@i80386 ) | ( x86@@isaVersion = x86@@i80486 )))
+      If      ( srcOperand.type = 'register' )
+        If (((( dstOperand.register >= 6 ) | ( dstOperand.register <= 7 )) & ( x86@@isaVersion = x86@@i80386 )) | \
+            ((( dstOperand.register >= 3 ) | ( dstOperand.register <= 7 )) & ( x86@@isaVersion = x86@@i80486 )))
+          lister@@putOperand            dstOperand.symbol
+          x86@@emitInstruction          'mov',    < 0x0f, 0x26 >,     null,               dstOperand.register,          srcOperand
+        Else
+          fail 'mov', 'encodable, but invalid test register'
+        End If
+      Else If ( dstOperand.type = 'register' )
+        If (((( dstOperand.register >= 6 ) | ( dstOperand.register <= 7 )) & ( x86@@isaVersion = x86@@i80386 )) | \
+            ((( dstOperand.register >= 3 ) | ( dstOperand.register <= 7 )) & ( x86@@isaVersion = x86@@i80486 )))
+          x86@@emitInstruction          'mov',    < 0x0f, 0x24 >,     null,               srcOperand.register,          dstOperand
+          lister@@putOperand            srcOperand.symbol
+        Else
+          fail 'mov', 'encodable, but invalid test register'
+        End If
+      Else
+        fail 'mov', 'invalid combination of operands and test register'
+      End If
+    Else
+      fail 'mov', 'invalid combination of operands'
+    End If
+  Else
+    fail 'mov', 'invalid operand size'
+  End If
+End Macro
+Macro int?                              number*
+  lister@@putInstruction                'int'
+  lister@@putOperand                    byte number
+  x86@@putOpcode                        0xcd, number
+End Macro
+Macro xchg?                             dst*,                                   src*
+  Local size, srcOperand, dstOperand, coin, opcode
+  lister@@putInstruction                'xchg'
+  srcOperand                            x86@@parseOperand                       src
+  dstOperand                            x86@@parseOperand                       dst
+  size                                  =                                       ( srcOperand.size or dstOperand.size )
+  If (( size = byte ) | ( size = word ) | (( size = dword ) & ( x86@@isaVersion >= x86@@i80386 )))
+    If      (( dstOperand.type = 'register' ) & ( srcOperand.type = 'register' )  & ( srcOperand.register = x86@@regAX ) & ( srcOperand.size = word ))
+      x86@@putOpcode                    ( 0x90 or dstOperand.register )
+      lister@@putOperand                dstOperand.symbol
+      lister@@putOperand                srcOperand.symbol
+    Else If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'register' )  & ( dstOperand.register = x86@@regAX ) & ( dstOperand.size = word ))
+      x86@@putOpcode                    ( 0x90 or srcOperand.register )
+      lister@@putOperand                dstOperand.symbol
+      lister@@putOperand                srcOperand.symbol
+    Else If ((( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' )) & (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' )))
+      If      ( dstOperand.type = 'register' )
+        If (( srcOperand.type = 'register' ) & ( random@@randomiseOpcodes ))
+          ;`xchg r1, r2` is actually encoded as `xchg r1 → r2` or `xchg r2 ← r1` with direction bit 0x02
+          ;both reg and r/m can be registers, but only r/m memory, so this does not work with memory operand
+          ;`xchg r1, r2` is the same as `xchg r2, r1`, but encoded differently
+          coin                          random@@random                          2
+        Else
+          coin                          =                                       true
+        End If
+      Else If ( srcOperand.type = 'register' )
+        coin                            =                                       false
+      Else
+        fail 'xchg', 'source and destination operands cannot be both memory'
+      End If
+      If      ( size = byte )
+        opcode                          =                                       ( 0x86 or 0 )
+      Else If (( size = word ) | ( size = dword ))
+        opcode                          =                                       ( 0x86 or 1 )
+      End If
+      If ( coin )
+        lister@@putOperand              dstOperand.symbol
+        x86@@emitInstruction            'xchg',   opcode,             size,               dstOperand.register,          srcOperand
+      Else
+        x86@@emitInstruction            'xchg',   opcode,             size,               srcOperand.register,          dstOperand
+        lister@@putOperand              srcOperand.symbol
+      End If
+    Else
+      fail 'xchg', 'invalid compination of operands'
+    End If
+  Else
+    fail 'xchg', 'invalid operand size'
+  End If
+End Macro
+Macro in?                               accumulator*,                           port*
+  Local srcOperand, dstOperand
+  lister@@putInstruction                'in'
+  srcOperand                            x86@@parseOperand                       accumulator
+  dstOperand                            x86@@parseOperand                       port
+  If (( srcOperand.type <> 'register' ) & ( srcOperand.register <> x86@@regAX ))
+    fail 'in', 'source operand must be al/ax/eax'
+  End If
+  If      ( dstOperand.type = 'immediate value' )
+    If      ( srcOperand.size = byte )
+      x86@@putOpcode                    0xe4
+      lister@@putOperand                'al'
+    Else If ( srcOperand.size = word )
+      If ( x86@@defaultOperandSize = 32 )
+        x86@@addPrefix                  0x66
+      End If
+      x86@@putOpcode                    0xe5
+      lister@@putOperand                'ax'
+    Else If (( srcOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 ))
+      If ( x86@@defaultOperandSize = 16 )
+        x86@@addPrefix                  0x66
+      End If
+      x86@@putOpcode                    0xe5
+      lister@@putOperand                'eax'
+    Else
+      fail 'in', 'invalid operand size'
+    End If
+    If (( dstOperand.value >= 0x00 ) & ( dstOperand.value <= 0xff ))
+      db dstOperand.value
+      lister@@putOperand                byte ( dstOperand.value )
+    Else
+      fail 'in', 'port-number must be a positive 8 bit value'
+    End If
+  Else If ( dstOperand.type = 'register' )
+    If (( dstOperand.register = x86@@regDX ) & ( dstOperand.size = word ))
+      ;yep, its always dx
+      If      ( srcOperand.size = byte )
+        x86@@putOpcode                  0xec
+        lister@@putOperand              'al'
+      Else If ( srcOperand.size = word )
+        If ( x86@@defaultOperandSize = 32 )
+          x86@@addPrefix                0x66
+        End If
+        x86@@putOpcode                  0xed
+        lister@@putOperand              'ax'
+      Else If (( srcOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 ))
+        If ( x86@@defaultOperandSize = 16 )
+          x86@@addPrefix                0x66
+        End If
+        x86@@putOpcode                  0xed
+        lister@@putOperand              'eax'
+      Else
+        fail 'in', 'invalid operand size'
+      End If
+      lister@@putOperand                'dx'
+    Else
+      fail 'in', 'invalid register for port'
+    End If
+  Else
+    fail 'in', 'invalid operand for port'
+  End If
+End Macro
+Macro out?                              port*,                                  accumulator*
+  Local srcOperand, dstOperand
+  lister@@putInstruction                'out'
+  srcOperand                            x86@@parseOperand                       accumulator
+  dstOperand                            x86@@parseOperand                       port
+  If (( srcOperand.type <> 'register' ) & ( srcOperand.register <> x86@@regAX ))
+    fail 'out', 'source operand must be al/ax'
+  End If
+  If      ( dstOperand.type = 'immediate value' )
+    If (( dstOperand.value >= 0x00 ) & ( dstOperand.value <= 0xff ))
+      lister@@putOperand                  byte ( dstOperand.value )
+    Else
+      fail 'out', 'port-number must be a positive 8 bit value'
+    End If
+    If      ( srcOperand.size = byte )
+      x86@@putOpcode                    0xe6
+      lister@@putOperand                'al'
+    Else If ( srcOperand.size = word )
+      If ( x86@@defaultOperandSize = 32 )
+        x86@@addPrefix                  0x66
+      End If
+      x86@@putOpcode                    0xe7
+      lister@@putOperand                'ax'
+    Else If (( srcOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 ))
+      If ( x86@@defaultOperandSize = 16 )
+        x86@@addPrefix                  0x66
+      End If
+      x86@@putOpcode                    0xe7
+      lister@@putOperand                'eax'
+    Else
+      fail 'out', 'invalid operand size'
+    End If
+    db dstOperand.value ;already checked
+  Else If ( dstOperand.type = 'register' )
+    If (( dstOperand.register = x86@@regDX ) & ( dstOperand.size = word ))
+      ;yep, its always dx
+      lister@@putOperand                'dx'
+      If      ( srcOperand.size = byte )
+        x86@@putOpcode                  0xee
+        lister@@putOperand              'al'
+      Else If ( srcOperand.size = word )
+        If ( x86@@defaultOperandSize = 32 )
+          x86@@addPrefix                0x66
+        End If
+        x86@@putOpcode                  0xef
+        lister@@putOperand              'ax'
+      Else If (( srcOperand.size = dword ) & ( x86@@isaVersion >= x86@@i80386 ))
+        If ( x86@@defaultOperandSize = 16 )
+          x86@@addPrefix                0x66
+        End If
+        x86@@putOpcode                  0xef
+        lister@@putOperand              'eax'
+      Else
+        fail 'out', 'invalid operand size'
+      End If
+    Else
+      fail 'out', 'invalid register for port'
+    End If
+  Else
+    fail 'out', 'invalid operand for port'
+  End If
+End Macro
+;( pseudo opcodes )
+;{
+  Macro nop?                            bytes:( 1 )
+    Local coin
+    If      ( bytes = 1 )
+      If ( random@@randomiseOpcodes )
+        coin                            random@@random                          8
+        If      ( coin = x86@@regAX )
+          xchg ax, ax
+        Else If ( coin = x86@@regCX )
+          xchg cx, cx
+        Else If ( coin = x86@@regDX )
+          xchg dx, dx
+        Else If ( coin = x86@@regBX )
+          xchg bx, bx
+        Else If ( coin = x86@@regSI )
+          xchg si, si
+        Else If ( coin = x86@@regDI )
+          xchg di, di
+        Else If ( coin = x86@@regBP )
+          xchg bp, bp
+        Else If ( coin = x86@@regSP )
+          xchg sp, sp
+        End If
+      Else
+        xchg ax, ax
+      End If
+    Else If ( bytes = 2 )
+      If ( random@@randomiseOpcodes )
+        coin                            random@@random                          8
+        If      ( coin = x86@@regAX )
+          xchg al, al
+        Else If ( coin = x86@@regCX )
+          xchg cl, cl
+        Else If ( coin = x86@@regDX )
+          xchg dl, dl
+        Else If ( coin = x86@@regBX )
+          xchg bl, bl
+        Else If ( coin = x86@@regSI )
+          xchg ah, ah
+        Else If ( coin = x86@@regDI )
+          xchg ch, ch
+        Else If ( coin = x86@@regBP )
+          xchg dh, dh
+        Else If ( coin = x86@@regSP )
+          xchg bh, bh
+        End If
+      Else
+        xchg al, al
+      End If
+    Else
+      fail 'nop', 'not yet encodable'
+    End If
+  End Macro
+  Macro flags?                          register*
+    ;only SF, ZF and PF are reliable
+    Local srcOperand, coin
+    srcOperand                          x86@@parseOperand                       register
+    If    ( srcOperand.type = 'register' )
+      If ( random@@randomiseOpcodes )
+        If ( random@@randomiseOpcodeSize )
+          coin                          random@@random                          15
+        Else
+          coin                          random@@random                          9
+        End If
+      Else
+        coin                            =                                       0
+      End If
+      ;3:3:3:2:2:2. adjust, if you want
+      If      ( coin <  3 )
+        or                              register,                               register
+      Else If ( coin <  6 )
+        and                             register,                               register
+      Else If ( coin <  9 )
+        test                            register,                               register
+      Else If ( coin < 11 )
+        sub                             register,                               null
+      Else If ( coin < 13 )
+        add                             register,                               null
+      Else
+        cmp                             register,                               null
+      End If
+    Else
+      fail 'flags', 'invalid operand'
+    End If
+  End Macro
+  Macro nul?                            register*
+    Local srcOperand, coin
+    srcOperand                          x86@@parseOperand                       register
+    If    ( srcOperand.type = 'register' )
+      If ( random@@randomiseOpcodes )
+        If ( random@@randomiseOpcodeSize )
+          coin                          random@@random                          5
+        Else
+          coin                          random@@random                          4
+        End If
+      Else
+        coin                            =                                       0
+      End If
+      ;2:2:1. adjust, if you want
+      If      ( coin < 2 )
+        xor                             register,                               register
+      Else If ( coin < 4 )
+        sub                             register,                               register
+      Else
+        mov                             register,                               0
+      End If
+    Else
+      fail 'nul', 'invalid operand'
+    End If
+  End Macro
+;}
+;( stubs for instructions that are not yet available )
+;{
+  Irp name,   pusha, popa, outsb, outsw, insb, insw, enter, leave
+    Macro name?                           ignored&
+      fail `name, 'this instruction was added with i80186'
+    End Macro
+  End Irp
+  Irp name,   cts, sgdt, sidt, lgdt, lidt, sldt, str, lldt, ltr, verr, verw, smsw, lmsw, lar, lsl, arpl, hcf
+    Macro name?                           ignore&
+      fail `name, 'this instruction was added with i80286'
+    End Macro
+  End Irp
+  Irp name,   movzx, movsx, lfs, lgs, lss, movsd, cmpsd, stosd, lodsd, scasd, clts, shld, shrd, bsf, bsr, bt, \
+              bts, btr, btc, cbw, cwde, cwd, cqd, seto, setno, setb, setnae, setnb, setae, sete, setz, setne, \
+              setnz, setbe, setna, setnbe, seta, sets, setns, setp, setpe, setnp, setpo, setl, setnge, setnl, setge, \
+              setle, setng, setnle, jecxz
+    Macro name?                           ignore&
+      fail `name, 'this instruction was added with i80386'
+    End Macro
+  End Irp
+  Irp name,   bswap, xadd, cmpxchg, cpuid, invd, wbinvd, rsm, invlpg
+    Macro name?                           ignore&
+      fail `name, 'this instruction was added with i80486'
+    End Macro
+  End Irp
+  Irp name,   cmpxchg8b, rdmsr, rdtsc, wrmr
+    Macro name?                           ignore&
+      fail `name, 'this instruction was added with Pentium'
+    End Macro
+  End Irp
+  Irp name,   pcmpgtb, pcmpgtw, pcmpgtd, packuswb, punpckhbw, punpckhwd, punpckhdq, pcmpeqb, pcmpeqw, pcmpeqd, psrlq, paddq, pmullw, psubusb, psubusw, \
+              pand, paddusb, paddusw, pandn, pmulhw, psubsb, psubsw, por, paddsb, paddsw, pxor, pmaddwd, psubb, psubw, psubd, paddb, \
+              paddw, paddd, psllw, pslld, psllq, psraw, psrad, psrlw, psrld, psrlq, movd, movq, emms, rdpmc
+    Macro name?                           ignore&
+      fail `name, 'this instruction was added with MMX'
+    End Macro
+  End Irp
+;}
+Macro x86@@killMySelf
+  Purge add?, or?, adc?, sbb?, and?, sub?, xor?, cmp?
+  Purge not?, neg?, mul?, imul?, div?, idiv?
+  Purge repne?, repnz?, repe?, repz?, rep?, lock?
+  Purge daa?, das?, aaa?, aas?, cbw?, cwd?, pushf?, popf?, sahf?, lahf?, movsb?, movsw?, cmpsb?, cmpsw?, stosb?, stosw?
+  Purge lodsb?, lodsw?, scasb?, scasw?, int3?, into?, iret?, salc?, xlat?, wait?, hlt?, cmc?, clc?, stc?, cli?, sti?, cld?, std?
+  Purge aam?, aad?
+  Purge jo?, jno?, jb?, jnae?, jnb?, jae?, je?, jz?, jne?, jnz?, jbe?, jna?, jnbe?, ja?, js?, jns?
+  Purge jp?, jpe?, jnp?, jpo?, jl?, jnge?, jnl?, jge?, jle?, jng?, jnle?, jg?, loopnz?, loopne?, loopz?, loope?, loop?, jcxz?
+  Purge rol?, ror?, rcl?, rcr?, shl?, sal?, shr?, sar?
+  Purge inc?, dec?, lds?, les?, lea?, escape?
+  Purge call?, retf?, retn?, ret?, jmp?, cmp?, test?, push?, pop?
+  Purge mov?, int?, xchg?, nop?, flags?, nul?, in?, out?
+  ;( stubs )
+  ;{
+    Purge pusha?, popa?, outsb?, outsw?, insb?, insw?, enter?, leave?                                                             ;i80186
+    Purge cts?, sgdt?, sidt?, lgdt?, lidt?, sldt?, str?, lldt?, ltr?, verr?, verw?, smsw?, lmsw?, lar?, lsl?, arpl?, hcf?         ;i80286
+    Purge movzx?, movsx?, lfs?, lgs?, lss?, movsd?, cmpsd?, stosd?, lodsd?, scasd?, clts?, shld?, shrd?                           ;i80386
+    Purge bsf?, bsr?, bt?, bts?, btr?, btc?, cbw?, cwde?, cwd?, cqd?                                                              ;i80386
+    Purge seto?, setno?, setb?, setnae?, setnb?, setae?, sete?, setz?, setne?, setnz?, setbe?, setna?, setnbe?, seta?, sets?      ;i80386
+    Purge setns?, setp?, setpe?, setnp?, setpo?, setl?, setnge?, setnl?, setge?, setle?, setng?, setnle?, jecxz?                  ;i80386
+    Purge bswap?, xadd?, cmpxchg?, cpuid?, invd?, wbinvd?, rsm?, invlpg?                                                          ;i80486
+    Purge cmpxchg8b?, rdmsr?, rdtsc?, wrmrs?                                                                                      ;Pentium
+    Purge pcmpgtb?, pcmpgtw?, pcmpgtd?, packuswb?, punpckhbw?, punpckhwd?, punpckhdq?, pcmpeqb?, pcmpeqw?, pcmpeqd?, psrlq?       ;MMX
+    Purge paddq?, pmullw?, psubusb?, psubusw?, pand?, paddusb?, paddusw?, pandn?, pmulhw?, psubsb?, psubsw?, por?, paddsb?        ;MMX
+    Purge paddsw?, pxor?, pmaddwd?, psubb?, psubw?, psubd?, paddb?, paddw?, paddd?, psllw?, pslld?, psllq?, psraw?, psrad?        ;MMX
+    Purge psrlw?, psrld?, psrlq?, movd?, movq?, emms?, rdpmc?                                                                     ;MMX
+  ;}
+End Macro
+

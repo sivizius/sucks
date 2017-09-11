@@ -1,0 +1,95 @@
+Struc compile@@i80386.init
+  Local lblRegisterPool, reservedRegister, freeRegisters
+  Macro compile@@i80386.finally
+    indentLess
+    displayOnNewLine '}'
+    x86@@killMySelf
+    Purge compile@@i80386.finally
+    Purge compile@@i80386.calcErshov, compile@@i80386.load
+    Purge compile@@i80386.call, compile@@i80386.reserveRegister, compile@@i80386.releaseRegister, compile@@i80386.freeRegisters
+  End Macro
+  Macro compile@@i80386.load            leaf*,                                  register*
+    
+  End Macro
+  Struc compile@@i80386.calcErshov      type*,                                  value:( null )
+    If      ( type = fbc0@@tConstant )
+      .                                 =                                       1
+    Else If ( type = fbc0@@tVariable )
+      .                                 =                                       1
+    Else
+      fail 'compiler@@i80386', 'cannot calculate ershov-number of unknown type'
+    End If
+  End Struc
+  Macro compile@@i80386.call            theAddress*
+    call                                theAddress
+  End Macro
+  compile@@i80386.defaultCall           Equ                                     < x86@@regDI, x86@@regSI, x86@@regDX, x86@@regCX >
+  compile@@i80386.defaultCall.registers =                                       4
+  compile@@i80386.numRegisters          =                                       14                                      ;without esp and ebp, ebp may be allowed at some point
+  reservedRegister                      =                                       nil
+  freeRegisters                         =                                       compile@@i80386.numRegisters
+  Virtual                               At null
+    lblRegisterPool::
+      rb compile@@i80386.numRegisters
+  End Virtual
+  Struc compile@@i80386.reserveRegister register:( nil ),                       callingConvention: compile@@i80386.defaultCall
+    Local index, temp, offs
+    If ( freeRegisters )
+      If ( register = nil )             ;( random register )
+        If ( reservedRegister = nil )
+          index                         =                                       null
+          Repeat                        compile@@i80386.numRegisters,           base:( null )
+            offs                        =                                       (( index + base ) mod compile@@i80386.numRegisters )
+            Load                        temp byte                               From lblRegisterPool:( offs )
+            If ( temp = null )
+              Store                     byte 1                                  At lblRegisterPool:( offs )
+              .                         =                                       offs
+              freeRegisters             =                                       ( freeRegisters - 1 )
+              Break
+            End If
+          End Repeat
+        Else
+          .                             =                                       reservedRegister
+          reservedRegister              =                                       nil
+        End If
+      Else                              ;( register for function-argument )
+        .                               =                                       nil                                     ;in case if no registers for arguments are left
+        Irpv                            item,                                   callingConvention
+          If (( register >= 0 ) & ( register < %% ))
+            Indx                        ( register + 1 )
+            .                           =                                       item
+          End If
+          Break
+        End Irpv
+      End If
+    Else                                ;( no free registers left )
+      .                                 =                                       nil
+    End If
+  End Struc
+  Macro compile@@i80386.releaseRegister register*,                              reserve:( false )
+    Local temp
+    If (( register >= 0 ) & ( register < compile@@i80386.numRegisters ))
+      Load                              temp byte                               From lblRegisterPool:( register )
+      If ( temp )
+       If ( reserve )
+          reservedRegister              =                                       register
+        Else
+          Store                         byte 1                                  At lblRegisterPool:( register )
+        End If
+      Else
+        fail 'compile@@i80386.releaseRegister', 'register was not reserved and cannot be released'
+      End If
+    Else
+      fail 'compile@@i80386.releaseRegister', 'invalid register cannot be released'
+    End If
+  End Macro
+  Macro compile@@i80386.freeRegisters
+    Store                               null compile@@i80386.numRegisters       At lblRegisterPool:( null )
+    freeRegisters                       =                                       compile@@i80386.numRegisters
+  End Macro
+  .                                     =                                       true
+  Include 'include/assembly/80386.flib'
+  displayOnNewLine 'generate a i386-binary'
+  displayOnNewLine '{'
+  indentMore
+End Struc

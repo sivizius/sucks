@@ -1,0 +1,64 @@
+Include 'include/assembly/80386.flib'
+x86@@isaVersion                         =                                       x86@@i80486
+use32
+Purge bswap?, xadd?, cmpxchg?, cpuid?, invd?, wbinvd?, rsm?, invlpg?
+Macro bswap?                            operand*
+  Local theOperand
+  lister@@putInstruction                'bswap'
+  theOperand                            x86@@parseOperand                       operand
+  If ( theOperand.size = dword )
+    If ( theOperand.type = 'register' )
+      lister@@putOperand                theOperand.symbol
+      x86@@putOpcode                    0x0f, ( 0xc8 or theOperand.register )
+    Else
+      fail 'bswap', 'invalid operand'
+    End If
+  Else
+    fail 'bswap', 'invalid operand sizes'
+  End If
+End Macro
+Irp                                     < name, base >, xadd,   0xc0, cmpxchg,  0xb0
+  Macro name?                           dst*,                                   src*
+    Local srcOperand, dstOperand, size, opcode
+    lister@@putInstruction              `name
+    srcOperand                          x86@@parseOperand                       src
+    dstOperand                          x86@@parseOperand                       dst
+    size                                =                                       ( srcOperand.size or dstOperand.size )
+    If (( size = byte ) | ( size = word ) | ( size = dword ))
+      If ((( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' )) & ( srcOperand.type = 'register' ))
+        If ( size = byte )
+          opcode                        =                                       ( base or 0 )
+        Else
+          opcode                        =                                       ( base or 1 )
+        End If
+        x86@@emitInstruction            `name,   < 0x0f, opcode >,   size,               srcOperand.register,                    dstOperand
+        lister@@putOperand              srcOperand.symbol
+      Else
+        fail `name, 'invalid combination of operands'
+      End If
+    Else
+      fail `name, 'invalid operand size'
+    End If
+  End Macro
+End Irp
+Irp                                     < name, opcode >, cpuid,  0xa2, invd,   0x08, wbinvd, 0x09, rsm,    0xaa
+  Macro name?
+    lister@@putInstruction              `name
+    x86@@putOpcode                      0x0f, opcode
+  End Macro
+End Irp
+Macro invlpg?                           operand
+  Local theOperand
+  lister@@putInstruction                'invlpg'
+  theOperand                            x86@@parseOperand                       operand
+  If ( theOperand.type = 'memory' )
+    x86@@emitInstruction                'invlpg', < 0x0f, 0x01 >,     null,               7,                                      theOperand
+  Else
+    fail 'invlpg', 'invalid operand'
+  End If
+End Macro
+Macro x86@@killMySelf
+  x86@@killMySelf
+  Purge x86@@killMySelf
+  Purge bswap?, xadd?, cmpxchg?, cpuid?, invd?, wbinvd?, rsm?, invlpg?
+End Macro

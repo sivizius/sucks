@@ -107,32 +107,51 @@ Macro uf4@@initFormat                   ignore&
     ;>  code language
     ;>    ;some code
     ;>  end code
-    Macro code                          language*,                              arguments&
-      Local foundLanguage, item, langCode, funcCode
+    Macro code                          someArguments&
+      Local foundLanguage
       foundLanguage                     =                                       false
       Macro yapters@@codeFinaliser
       End Macro
-      Irpv                              item,                                   yapters@@lstCode
-        Match                           langCode funcCode,                      item
-          If ( `langCode = `language )
-            displayOnNewLine '<code:', `langCode, '>'
-            displayOnNewLine '{'
-            indentMore
-            foundLanguage               =                                       true
-;            funcCode                    arguments
-            Match                       any,                                    arguments
-              funcCode                  arguments
-            Else
+
+      Match                             theLanguage theRest,                    someArguments
+        Irpv                            item,                                   yapters@@lstCode
+          Match                         langCode funcCode,                      item
+            If ( `langCode = `theLanguage )
+              displayOnNewLine '<code:', `langCode, '>'
+              displayOnNewLine '{'
+              indentMore
+              foundLanguage             =                                       true
+              funcCode                  theRest
+              Break
+            End If
+          Else
+            fail 'format→uf4→code', 'cannot parse entry in list of code-spaces (u know, what i mean)'
+          End Match
+        End Irpv
+        If ( foundLanguage = false )
+          fail 'format→uf4→code', 'unknown language »', `theLanguage, '«'
+        End If
+      Else Match                        theLanguage,                            someArguments
+        Irpv                            item,                                   yapters@@lstCode
+          Match                         langCode funcCode,                      item
+            If ( `langCode = `theLanguage )
+              displayOnNewLine '<code:', `langCode, '>'
+              displayOnNewLine '{'
+              indentMore
+              foundLanguage             =                                       true
               funcCode
-            End Match
-          End If
-        Else
-          fail 'format→uf4→code', 'cannot parse entry in list of code-spaces (u know, what i mean)'
-        End Match
-      End Irpv
-      If ( foundLanguage = false )
-        fail 'format→uf4→code', 'unknown language »', `language, '«'
-      End If
+              Break
+            End If
+          Else
+            fail 'format→uf4→code', 'cannot parse entry in list of code-spaces (u know, what i mean)'
+          End Match
+        End Irpv
+        If ( foundLanguage = false )
+          fail 'format→uf4→code', 'unknown language »', `theLanguage, '«'
+        End If
+      Else
+        fail 'code', 'cannot match'
+      End Match
       Macro end?.code!
         yapters@@codeFinaliser
         indentLess

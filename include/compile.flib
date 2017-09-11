@@ -1,7 +1,8 @@
-Include 'include/compile/arguments.flib'
+;Include 'include/compile/arguments.flib'
 Include 'include/compile/calls.flib'
 ;Include 'include/compile/decode.flibg'
 ;Include 'include/compile/compile.flibg'
+Include 'include/compile/i80386.flib'
 
 functions@@offsCode                     =                                       0x00
 functions@@sizeCode                     =                                       0x08
@@ -11,10 +12,374 @@ functions@@offsStrings                  =                                       
 functions@@sizeStrings                  =                                       0x28
 functions@@addrCompiled                 =                                       0x30
 functions@@lenStructure                 =                                       0x38
+compile@@sizeQueque                     =                                       ( 16 )
+compile@@sizeStack                      =                                       ( 16 )
+compile@@sizeTree                       =                                       ( 16 )
+compile@@thisLeafIsEast                 =                                       ( true )
+compile@@thisLeafIsWest                 =                                       ( false )
+compile@@wantConstantArgument           =                                       ( true )                                ;this is a constant for functions, that want a constant value as argument.
 
-Macro compile@@code                     ignore&
+Macro compile@@code                     theGenerator*,                          ignore&
   Local lblFunctions, ctrFunctions, numFunctions
-  Local operator, compile@@parseFunction, compile@@addFunction
+  Local operator, parseFunction, addFunction
+  Local lblQueque,  lenQueque,  maxQueque,  ptrQueque,  endQueque,  enque, deque
+  Local lblStack,   lenStack,   maxStack,   ptrStack,   topStack,   pushArgument, peekArgument, popArgument
+  Local lblTree,    lenTree,    maxTree,    ptrTree,                addTreeNode, addTreeNode
+  ;( instruction-queque )
+  ;{
+    maxQueque                           =                                       null
+    ptrQueque                           =                                       null
+    endQueque                           =                                       null
+    Virtual                             At null
+      lblQueque::
+        rb                              ( lenQueque )
+        ;:  0x00  word  type
+        ;:  0x02  word  misc
+        ;:  0x04  dword size
+        ;:  0x08  qword value
+    End Virtual
+    Macro enque                         type*,              value*,             size:( null ),      misc:( null )
+      If ( endQueque >= maxQueque )
+        maxQueque                       =                                       ( endQueque + compile@@sizeQueque )
+      End If
+      Store                             word  type                              At lblQueque:( endQueque + 0x00 )
+      Store                             word  misc                              At lblQueque:( endQueque + 0x02 )
+      Store                             dword size                              At lblQueque:( endQueque + 0x04 )
+      Store                             qword value                             At lblQueque:( endQueque + 0x08 )
+      endQueque                         =                                       ( endQueque + compile@@sizeQueque )
+    End Macro
+    Struc deque
+      If ( ptrQueque >= endQueque )
+        fail 'compile@@code', 'queque is empty'
+      End If
+      Local type, misc, size, value
+      Load                              type  word                              From lblQueque:( ptrQueque + 0x00 )
+      Load                              misc  word                              From lblQueque:( ptrQueque + 0x02 )
+      Load                              size  dword                             From lblQueque:( ptrQueque + 0x04 )
+      Load                              value qword                             From lblQueque:( ptrQueque + 0x08 )
+      .type                             =                                       type
+      .misc                             =                                       misc
+      .size                             =                                       size
+      .value                            =                                       value
+      ptrQueque                         =                                       ( ptrQueque + compile@@sizeQueque )
+    End Struc
+  ;}
+  ;( argument-stack )
+  ;{
+    maxStack                            =                                       null
+    ptrStack                            =                                       null
+    topStack                            =                                       null
+    Virtual                             At null
+      lblStack::
+        rb                              ( lenStack )
+        ;:  0x00  word  type
+        ;:  0x02  word  misc
+        ;:  0x04  dword size
+        ;:  0x08  qword value
+    End Virtual
+    Macro pushArgument                  type*,              value*,             size:( null ),      misc:( null )
+      If ( ptrStack >= maxStack )
+        maxStack                        =                                       ( ptrStack + compile@@sizeStack )
+      End If
+      Store                             word  type                              At lblStack:( ptrStack + 0x00 )
+      Store                             word  misc                              At lblStack:( ptrStack + 0x02 )
+      Store                             dword size                              At lblStack:( ptrStack + 0x04 )
+      Store                             qword value                             At lblStack:( ptrStack + 0x08 )
+      ptrStack                          =                                       ( ptrStack + compile@@sizeStack )
+    End Macro
+    Struc peekArgument                  offs:( null )
+      If ( ptrStack < null )
+        fail 'compile@@code', 'stack is empty'
+      End If
+      Local type, misc, size, value
+      Load                              type  word                              From lblStack:( ptrStack - ( compile@@sizeStack * offs ) + 0x00 )
+      Load                              misc  word                              From lblStack:( ptrStack - ( compile@@sizeStack * offs ) + 0x02 )
+      Load                              size  dword                             From lblStack:( ptrStack - ( compile@@sizeStack * offs ) + 0x04 )
+      Load                              value qword                             From lblStack:( ptrStack - ( compile@@sizeStack * offs ) + 0x08 )
+      .type                             =                                       type
+      .misc                             =                                       misc
+      .size                             =                                       size
+      .value                            =                                       value
+    End Struc
+  ;}
+  ;( pop arguments and generate AST )
+  ;{
+    maxTree                             =                                       null
+    ptrTree                             =                                       null
+    Virtual                             At null
+      lblTree::
+        rb                              ( lenTree )
+        ;:0x00    byte  type (const, variable, add, sub, ...)
+        ;:0x01    byte  null
+        ;:0x02    word  ershov
+        ;:0x04    dword *down
+        ;:union
+        ;{
+        ;:  0x08  dword *east
+        ;:  0x0c  dword *west
+        ;} or {
+        ;:  0x08  qword value
+        ;}
+    End Virtual
+    Struc addTreeNode                   instruction*,       east*,              west*
+      Local ershovEast, ershovWest
+      If (( ptrTree >= maxTree ))
+        maxTree                         =                                       ( ptrTree + compile@@sizeTree )
+      End If
+      If (( east < null ) | ( east >= ptrTree ))
+        fail 'compile@@code', 'invalid value of *east'
+      End If
+      If (( west < null ) | ( west >= ptrTree ))
+        fail 'compile@@code', 'invalid value of *west'
+      End If
+      Store                             byte  instruction                       At    lblTree:( ptrTree + 0x00 )
+      Store                             dword east                              At    lblTree:( ptrTree + 0x08 )
+      Store                             dword west                              At    lblTree:( ptrTree + 0x0c )
+      Store                             dword ptrTree                           At    lblTree:( east    + 0x04 )
+      Store                             dword ptrTree                           At    lblTree:( west    + 0x04 )
+      ;[https://en.wikipedia.org/wiki/Ershov_Number]
+      Load                              ershovEast word                         From  lblTree:( east    + 0x02 )
+      Load                              ershovWest word                         From  lblTree:( west    + 0x02 )
+      If      ( ershovEast > ershovWest )
+        Store                           word  ( ershovEast )                    At    lblTree:( ptrTree + 0x02 )
+      Else If ( ershovEast < ershovWest )
+        Store                           word  ( ershovWest )                    At    lblTree:( ptrTree + 0x02 )
+      Else If ( ershovEast = ershovWest )
+        Store                           word  ( ershovEast + 1 )                At    lblTree:( ptrTree + 0x02 )
+      End If
+      .                                 =                                       ptrTree
+      ptrTree                           =                                       ( ptrTree + compile@@sizeTree )
+    End Struc
+    Struc addTreeLeaf                   type*,                                  value*,                                 side*
+      Local ershov
+      If (( ptrTree >= maxTree ))
+        maxTree                         =                                       ( ptrTree + compile@@sizeTree )
+      End If
+      If ( side = compile@@thisLeafIsEast )
+        ershov                          theGenerator.calcErshov                 type,                                   value
+      Else
+        ershov                          =                                       1
+      End If
+      Store                             byte  type                              At    lblTree:( ptrTree + 0x00 )
+      Store                             word  ershov                            At    lblTree:( ptrTree + 0x02 )
+      Store                             qword value                             At    lblTree:( ptrTree + 0x08 )
+      .                                 =                                       ptrTree
+      ptrTree                           =                                       ( ptrTree + compile@@sizeTree )
+    End Struc
+    Struc popArgument                   doIwantConstant:( false )
+      Local tmp, op1, op2
+      ptrStack                          =                                       ( ptrStack - compile@@sizeStack )
+      tmp                               peekArgument
+      If      ( tmp.type = fbc0@@tConstant )
+        .type                           =                                       fbc0@@tConstant
+        .value                          =                                       tmp.value
+      Else if ( tmp.type = fbc0@@tOperator )
+        ;:note: a ∘ b -> a b ∘ ->
+        ;> push a
+        ;> push b
+        ;> instruction
+        ;:->
+        ;> pop op2 = b
+        ;> pop op1 = a
+        If      ( tmp.value = fbc0@@opAdd )                                     ;< op1 + op2 >
+          op2                           popArgument                             doIwantConstant
+          op1                           popArgument                             doIwantConstant
+          If      (( op1.type = fbc0@@tConstant ) & ( op2.type = fbc0@@tConstant ))
+            .type                       =                                       fbc0@@tConstant
+            .value                      =                                       ( op1.value + op2.value )
+          Else If ( doIwantConstant = false )
+            If      (( op2.type = fbc0@@tConstant ) & ( op2.value = null ))     ;< op1 + 0 = op1 >
+              .type                     =                                       op1.type
+              .value                    =                                       op1.value
+            Else If (( op1.type = fbc0@@tConstant ) & ( op1.value = null ))     ;< 0 + op2 = op2 >
+              .type                     =                                       op2.type
+              .value                    =                                       op2.value
+            Else
+              op1                       addTreeLeaf                             op1.type,           op1.value,          compile@@thisLeafIsEast
+              op2                       addTreeLeaf                             op2.type,           op2.value,          compile@@thisLeafIsWest
+              .type                     =                                       fbc0@@tTreeNode
+              .value                    addTreeNode                             tmp.value,          op1,                op2
+            End If
+          Else
+            fail 'compile@@code', 'arguments are not constant, but you want constant (+)'
+          End If
+        ;< test (+) first, then try other operators >
+        Else If ( tmp.value = fbc0@@opSub )                                     ;< op1 - op2 >
+          op2                           popArgument                             doIwantConstant
+          op1                           popArgument                             doIwantConstant
+          If      (( op1.type = fbc0@@tConstant ) & ( op2.type = fbc0@@tConstant ))
+            .type                       =                                       fbc0@@tConstant
+            .value                      =                                       ( op1.value - op2.value )
+          Else If ( doIwantConstant = false )
+            .type                       =                                       fbc0@@tTreeNode
+            .value                      =                                       tmp.value
+          Else
+            fail 'compile@@code', 'argument is not constant (-)'
+          End If
+        Else If ( tmp.value = fbc0@@opMul )                                     ;< op1 * op2 >
+          op2                           popArgument                             doIwantConstant
+          op1                           popArgument                             doIwantConstant
+          If      (( op1.type = fbc0@@tConstant ) & ( op2.type = fbc0@@tConstant ))
+            .type                       =                                       fbc0@@tConstant
+            .value                      =                                       ( op1.value * op2.value )
+          Else if (( op1.type = fbc0@@tConstant ) & ( op1.value = null ))
+            .type                       =                                       fbc0@@tConstant
+            .value                      =                                       ( null )
+          Else if (( op2.type = fbc0@@tConstant ) & ( op2.value = null ))
+            .type                       =                                       fbc0@@tConstant
+            .value                      =                                       ( null )
+          Else If ( doIwantConstant = false )
+            .type                       =                                       fbc0@@tTreeNode
+            .value                      =                                       tmp.value
+          Else
+            fail 'compile@@code', 'argument is not constant (*)'
+          End If
+        Else If ( tmp.value = fbc0@@opDiv )                                     ;< op1 / op2 >
+          op2                           popArgument                             doIwantConstant
+          op1                           popArgument                             doIwantConstant
+          If      (( op1.type = fbc0@@tConstant ) & ( op2.type = fbc0@@tConstant ))
+            .type                       =                                       fbc0@@tConstant
+            .value                      =                                       ( op1.value / op2.value )
+          Else if (( op1.type = fbc0@@tConstant ) & ( op1.value = null ))
+            .type                       =                                       fbc0@@tConstant
+            .value                      =                                       ( null )
+          Else if (( op2.type = fbc0@@tConstant ) & ( op2.value = null ))
+            fail 'compile@@code', 'division by zero'
+          Else If ( doIwantConstant = false )
+            .type                       =                                       fbc0@@tTreeNode
+            .value                      =                                       tmp.value
+          Else
+            fail 'compile@@code', 'argument is not constant (/)'
+          End If
+        Else
+          tmp                           fbc0@@mnemonic
+          fail 'compile@@code', 'invalid operator: »', tmp, '«'
+        End If
+      End If
+    End Struc
+    Struc generateInstructions          root*,                                  mode*,                                  register:( nil )
+      ;             o   o               ;0,1,2  – modes
+      ;              \ /                ;0   1  1   2  2   2
+      ;         o   o 2   o             ; \ /    \ /    \ /
+      ;          \ /   \ /              ;  0      1      2
+      ;           2     2               ;+      – always use given register for result
+      ;      x   o \   /                ;x      – only   use given register for result, when machine supports 3-operand forms, e.g. `add r1, r*, x`, where r* is the given register
+      ;       \ /   \ /                 ;o      – could  use given register for result
+      ;+     x 1     2
+      ; \   /   \   /
+      ;  \ /     \ /
+      ;   0       1
+      ;    \     /
+      ;     \   /
+      ;      \ /
+      ;       0
+      ;        \
+      ;         root
+      ;←east         west →
+      Local root, type, east, west, regResult, regTemp
+      Load                              type        byte                        From lblTree:( root + 0x00 )
+      If      ( type = fbc0@@tTreeNode )
+        Load                            east        dword                       From lblTree:( root + 0x08 )
+        Load                            west        dword                       From lblTree:( root + 0x0c )
+        Load                            east.ershov word                        From lblTree:( east + 0x02 )            ;assume, that the AST was generated correctly and east is in it
+        Load                            west.ershov word                        From lblTree:( west + 0x02 )            ;assume, that the AST was generated correctly and west is in it
+        If      ( east.ershov >= west.ershov )                                  ;( east first )
+          If      ( mode = 2 )
+            regResult                   generateInstructions                    east,                                   2
+            If ( west.ershov )
+              regTemp                   generateInstructions                    west,                                   2
+              theGenerator.releaseRegister                                      regTemp
+            Else
+              ;e.g. `add r1, r2, [ var ]` or `add r1, r2, imm`. if machine does not allowed non-register-arguments, theGenerator.calcErshov must never return zero/null or always one
+            End If
+          Else If ( mode = 1 )
+            regResult                   generateInstructions                    east,                                   1,                                      register
+            If ( west.ershov )
+              regTemp                   generateInstructions                    west,                                   2,                                      register
+              theGenerator.releaseRegister                                      regTemp
+            Else
+              ;see above
+            End If
+          Else If ( mode = 0 )
+            regResult                   generateInstructions                    east,                                   0,                                      register
+            If ( west.ershov )
+              regTemp                   generateInstructions                    west,                                   1,                                      register
+              theGenerator.releaseRegister                                      regTemp
+            Else
+              ;see above
+            End If
+          Else
+            fail 'compile@@code', 'unexpected mode ', decimal mode
+          End If
+        Else                                                                    ;( west first )
+          If      ( mode = 2 )
+            regTemp                     generateInstructions                    west,                                   2
+            regResult                   generateInstructions                    east,                                   2
+            theGenerator.releaseRegister                                        regTemp
+          Else If ( mode = 1 )
+            regTemp                     generateInstructions                    west,                                   2,                                      register
+            regResult                   generateInstructions                    east,                                   1,                                      register
+            theGenerator.releaseRegister                                        regTemp
+          Else If ( mode = 0 )
+            regTemp                     generateInstructions                    west,                                   1,                                      register
+            regResult                   generateInstructions                    east,                                   0,                                      register
+            theGenerator.releaseRegister                                        regTemp
+          Else
+            fail 'compile@@code', 'unexpected mode ', decimal mode
+          End If
+        End If
+        .                               =                                       regResult
+      Else If ( type = fbc0@@tConstant )
+        ;may    load a constant of a western leaf in a register, if machine does not allow e.g. add reg, imm, x
+        ;may    load a constant of a eastern leaf in a register, if machine does not allow e.g. add reg, x,   imm or add reg, imm
+        If      ( mode = 2 )
+          regResult                     theGenerator.reserveRegister
+        Else If ( mode = 1 )
+          Irpv                          item,                                   theGenerator.defaultCall
+            Indx register
+            regArgument                 =                                       item
+            Break
+          End Irpv
+          regResult                     theGenerator.reserveRegister
+          regTemp                       theGenerator.reserveRegister
+          If      ( regResult = nil )
+            
+          Else If ( regResult <> regArgument )
+          Else If ( regTemp   = nil )
+          Else
+            theGenerator.releaseRegister                                        regResult
+            regResult                   =                                       regTemp
+          End If
+        Else If ( mode = 0 )
+          regResult                     theGenerator.reserveRegister            register,                               theGenerator.defaultCall
+        Else
+          fail 'compile@@code', 'unexpected mode ', decimal mode
+        End If
+      Else
+        fail 'compile@@code', 'unexpected ›something‹ in AST'
+      End If
+    End Struc
+    Macro popArgument                   argument:( nil )
+      Local root, regResult
+      root                              popArgument
+      If ( root.type = fbc0@@tTreeNode )
+        regResult                       generateInstructions                    root,                                   1,                                      argument
+        If      ( argument = nil )
+          ;push result
+          theGenerator.releaseRegister  regResult
+        Else If ( regResult <> argument )
+          fail '???', 'wrong result register'
+        End If
+      Else
+        If ( argument = nil )           ;( push argument into the stack )
+          ;push result
+        Else                            ;( load argument in a register )
+          regResult                     theGenerator.reserveRegister            argument,                               theGenerator.defaultCall
+          theGenerator.load             root,                                   regResult
+        End If
+      End If
+    End Macro
+  ;}
   ;( handle functions )
   ;{
     Virtual                             At null
@@ -22,7 +387,7 @@ Macro compile@@code                     ignore&
         rb ( functions@@lenStructure * numFunctions )
     End Virtual
     ctrFunctions                        =                                       null
-    Struc compile@@addFunction          ptrCode*,                     lenCode*,                     ptrFunc*, \
+    Struc addFunction                   ptrCode*,                     lenCode*,                     ptrFunc*, \
                                         ptrStrings:( null ),          lenStrings:( null )
       Local hazFunction, offsCode, offsFunc, addrCompiled
       hazFunction                       =                                       nil
@@ -35,7 +400,7 @@ Macro compile@@code                     ignore&
         End If
       End Repeat
       If ( hazFunction = nil )
-        displayValue 'add function *0x', ( ptrCode + ptrFunc )
+        ;displayValue 'add function *0x', ( ptrCode + ptrFunc )
         Store                           qword ptrCode                           At lblFunctions:( functions@@lenStructure * ctrFunctions + functions@@offsCode )
         Store                           qword lenCode                           At lblFunctions:( functions@@lenStructure * ctrFunctions + functions@@sizeCode )
         Store                           qword ptrFunc                           At lblFunctions:( functions@@lenStructure * ctrFunctions + functions@@offsFunc )
@@ -45,31 +410,31 @@ Macro compile@@code                     ignore&
         .                               =                                       ctrFunctions
         ctrFunctions                    =                                       ( ctrFunctions + 1 )
       Else
-        displayValue 'haz function *0x', ( offsCode + offsFunc )
+        ;displayValue 'haz function *0x', ( offsCode + offsFunc )
         Load                            addrCompiled qword                      From lblFunctions:( functions@@lenStructure * hazFunction + functions@@addrCompiled )
         .                               =                                       hazFunction
       End If
     End Struc
-    Macro compile@@addFunction          ptrCode*,                     lenCode*,                     ptrFunc*, \
+    Macro addFunction                   ptrCode*,                     lenCode*,                     ptrFunc*, \
                                         ptrStrings:( null ),          lenStrings:( null )
       Local void
-      void compile@@addFunction         ptrCode,            lenCode,            ptrFunc,  \
+      void addFunction                  ptrCode,            lenCode,            ptrFunc,  \
                                         ptrStrings,         lenStrings
     End Macro
   ;}
   ;( pure functional instructions with two arguments, e.g. `add a, b` )
   ;{
     Macro operator                      name*,                                  value*
-      If ( compile@@ptrStack < 32 )
-        fail < '[asm:compile] ', name, ' need 2 arguments in stack' >
+      If ( ptrStack < 2 * compile@@sizeStack )
+        fail 'compile@@code', name, ' need 2 arguments in stack' >
       End If
-      displayOnNewLine '#', name
-      compile@@push                     fbc0@@tOperator,                        ( value )
+      ;displayOnNewLine '#', name
+      pushArgument                      fbc0@@tOperator,                        ( value )
     End Macro
   ;}
   ;( compile functions )
   ;{
-    Struc compile@@parseFunction        theFunction:( null ),                   caller:( nil )
+    Struc parseFunction                 theFunction:( null ),                   caller:( nil )
       Local temp, offs, size, char, ctrArguments
       Local pointer, instruction
       Local lblCode, lblStrings
@@ -77,7 +442,7 @@ Macro compile@@code                     ignore&
       lblCode                           Equ                                     format@@lblOutput
       lblStrings                        Equ                                     format@@lblOutput
       If ( theFunction >= ctrFunctions )
-        fail 'compile@@parseFunction', 'invalid function'
+        fail 'compile@@code', 'invalid function'
       End If
       Load                              ptrCode     qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@offsCode )
       Load                              lenCode     qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@sizeCode )
@@ -85,21 +450,21 @@ Macro compile@@code                     ignore&
       Load                              ptrStrings  qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@offsStrings )
       Load                              lenStrings  qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@sizeStrings )
       Load                              ptrCompiled qword                       From lblFunctions:( functions@@lenStructure * theFunction + functions@@addrCompiled )
-      displayOnNewLine 'parse function 0x'
-      displayHexQWord ptrCode
-      display     ' - 0x'
-      displayHexQWord lenCode
-      display     ' - 0x'
-      displayHexQWord ptrFunc
-      displayOnNewLine '               0x'
-      displayHexQWord ptrStrings
-      display     ' - 0x'
-      displayHexQWord lenStrings
-      display     ' - 0x'
-      displayHexQWord ptrCompiled
+      ;displayOnNewLine 'parse function 0x'
+      ;displayHexQWord ptrCode
+      ;display     ' - 0x'
+      ;displayHexQWord lenCode
+      ;display     ' - 0x'
+      ;displayHexQWord ptrFunc
+      ;displayOnNewLine '               0x'
+      ;displayHexQWord ptrStrings
+      ;display     ' - 0x'
+      ;displayHexQWord lenStrings
+      ;display     ' - 0x'
+      ;displayHexQWord ptrCompiled
       If ( ptrCompiled = nil )
-        displayOnNewLine '{'
-        indentMore
+        ;displayOnNewLine '{'
+        ;indentMore
         format@@newSpace
           temp                          =                                       null
           pointer                       =                                       ptrFunc
@@ -129,22 +494,22 @@ Macro compile@@code                     ignore&
             If false
             Else If ( instruction = fbc0@@opPushByte )
               Load                      temp byte                               From lblCode:( ptrCode + pointer )
-              compile@@push             fbc0@@tConstant,                        ((( temp and 0x00000080 ) * 0xffffffffffffff00 ) or temp )
+              pushArgument              fbc0@@tConstant,                        ((( temp and 0x00000080 ) * 0xffffffffffffff00 ) or temp )
               ;displayValue 'pushByte 0x', temp
               pointer                   =                                       ( pointer + 1 )
             Else If ( instruction = fbc0@@opPushWord )
               Load                      temp word                               From lblCode:( ptrCode + pointer )
-              compile@@push             fbc0@@tConstant,                        ((( temp and 0x00008000 ) * 0xffffffffffff0000 ) or temp )
+              pushArgument              fbc0@@tConstant,                        ((( temp and 0x00008000 ) * 0xffffffffffff0000 ) or temp )
               ;displayValue 'pushWord 0x', temp
               pointer                   =                                       ( pointer + 2 )
             Else If ( instruction = fbc0@@opPushDWord )
               Load                      temp dword                              From lblCode:( ptrCode + pointer )
-              compile@@push             fbc0@@tConstant,                        ((( temp and 0x80000000 ) * 0xffffffff00000000 ) or temp )
+              pushArgument              fbc0@@tConstant,                        ((( temp and 0x80000000 ) * 0xffffffff00000000 ) or temp )
               ;displayValue 'pushDWord 0x', temp
               pointer                   =                                       ( pointer + 4 )
             Else If ( instruction = fbc0@@opPushQWord )
               Load                      temp qword                              From lblCode:( ptrCode + pointer )
-              compile@@push             fbc0@@tConstant,                        ( temp )
+              pushArgument              fbc0@@tConstant,                        ( temp )
               ;displayValue 'pushQWord 0x', temp
               pointer                   =                                       ( pointer + 8 )
             Else If ( instruction = fbc0@@opAdd )
@@ -182,24 +547,37 @@ Macro compile@@code                     ignore&
               displayOnNewLine '}'
               Break
             Else If ( instruction = fbc0@@opCall )
-              Store                     qword ptrFunc                           At lblFunctions:( functions@@lenStructure * theFunction + functions@@offsFunc )
-              Store                     qword pointer                           At lblFunctions:( functions@@lenStructure * theFunction + functions@@offsPointer )
               ;( get address, add function, parse function )
               ;{
-                temp                    compile@@popArgument                    compile@@wantConstantArgument
-                temp                    compile@@addFunction                                \
-                                        ptrCode,            lenCode,            temp.value, \
-                                        ptrStrings,         lenStrings
-                temp                    compile@@parseFunction                  \
-                                        temp,               theFunction
+                Store                   qword ptrFunc                           At lblFunctions:( functions@@lenStructure * theFunction + functions@@offsFunc )
+                Store                   qword pointer                           At lblFunctions:( functions@@lenStructure * theFunction + functions@@offsPointer )
+                  temp                  popArgument                             compile@@wantConstantArgument
+                  temp                  addFunction                             ptrCode,            lenCode,            temp.value, \
+                                                                                ptrStrings,         lenStrings
+                  temp                  parseFunction                           temp,                                   theFunction
+                Load                    ptrFunc     qword                       From lblFunctions:( functions@@lenStructure * temp.call + functions@@offsFunc )
+                Load                    pointer     qword                       From lblFunctions:( functions@@lenStructure * temp.call + functions@@offsPointer )
               ;}
-              Load                      ptrFunc     qword                       From lblFunctions:( functions@@lenStructure * temp.call + functions@@offsFunc )
-              Load                      pointer     qword                       From lblFunctions:( functions@@lenStructure * temp.call + functions@@offsPointer )
-              displayValue 'call *0x', temp.value
-              Load                      ctrArguments word                       From lblCode:( ptrCode + temp.value + fbc0@@offFunctionNumArguments )
-              displayOnNewLine 'ctrArguments '
-              displayDecimal ctrArguments
-            Else If ( instruction = fbc0@@opFunction )
+              ;( get number of arguments, push stack arguments, then calculate register-arguments )
+              ;{
+                Load                    ctrArguments word                       From lblCode:( ptrCode + temp.value + fbc0@@offFunctionNumArguments )
+                displayOnNewLine 'ctrArguments '
+                displayDecimal ctrArguments
+                ;( stack arguments )
+                ;{
+                  If ( ctrArguments > theGenerator.defaultCall.registers )
+                    Repeat ( ctrArguments - theGenerator.defaultCall.registers )
+                    End Repeat
+                  End If
+                ;}
+                ;( register arguments )
+                ;{
+                  Repeat theGenerator.defaultCall.registers
+                  End Repeat
+                ;}
+              ;}
+              
+              theGenerator.call         temp.value
             Else If ( instruction = fbc0@@opAllocGlobal )
             Else If ( instruction = fbc0@@opAllocLocal )
             Else If ( instruction = fbc0@@opAllocate )
@@ -213,11 +591,11 @@ Macro compile@@code                     ignore&
           End While
           db 0x13, 0x37
         ptrCompiled                     format@@endSpace
-        displayValue 'ptrCompiled      0x', ptrCompiled
-        displayValue 'ptrCompiled.offs 0x', ptrCompiled.offs
+        ;displayValue 'ptrCompiled      0x', ptrCompiled
+        ;displayValue 'ptrCompiled.offs 0x', ptrCompiled.offs
         Store                           qword ptrCompiled.offs                  At lblFunctions:( functions@@lenStructure * theFunction + functions@@addrCompiled )
-        indentLess
-        displayOnNewLine '}'
+        ;indentLess
+        ;displayOnNewLine '}'
         .                               =                                       ptrCompiled.offs
       Else
         .                               =                                       ptrCompiled
@@ -229,14 +607,14 @@ Macro compile@@code                     ignore&
   ;{
     Macro parseYapterTable              ptrTable*,                              numYapters*
       Local bytecode, strings
-      displayValue 'parse yapter-table at 0x', ptrTable
+      ;displayValue 'parse yapter-table at 0x', ptrTable
       offs                              =                                       ( ptrTable + numYapters * yapters@@lenOfOneYapter )
       Repeat                            numYapters,                             ctrYapters:( null )
         bytecode                        yapters@@get                            ptrTable,           ctrYapters
         If ( bytecode.type = yapters@@tBytecode & bytecode.word = 0xc0fb )
           strings                       yapters@@get                            ptrTable,           bytecode.dword
           If ( strings.type = yapters@@tStrings )
-            compile@@addFunction        ( offs + bytecode.qword2 ),   bytecode.qword1,    bytecode.qword0, \
+            addFunction                 ( offs + bytecode.qword2 ),   bytecode.qword1,    bytecode.qword0, \
                                         ( offs + strings.qword2  ),   strings.qword1
           Else
             fail '...', 'yapter is not of type ›strings‹'
@@ -246,20 +624,37 @@ Macro compile@@code                     ignore&
     End Macro
   ;}
   Macro yapters@@codeFinaliser
-    Local theYapter, theMain
-    yapters@@newYapter                  yapters@@tBytecode,                     'am',               'd 64', \
+    Local theYapter, theMain, temp
+    temp                                theGenerator.init
+    If ( temp )
+      yapters@@newYapter                yapters@@tBytecode,                     'am',               'd 64', \
                                         ( theMain - theYapter.offs ),           theYapter.size,     theYapter.base
-      theMain                           compile@@parseFunction
-    theYapter                           yapters@@endYapter
+        theMain                         parseFunction
+      theYapter                         yapters@@endYapter
+      theGenerator.finally
+    Else
+      fail 'compile@@code', 'initalisation of the generator failed'
+    End If
     Purge parseYapterTable, yapters@@codeFinaliser
+    lenQueque                           =                                       maxQueque
+    lenStack                            =                                       maxStack
+    lenTree                             =                                       maxTree
     numFunctions                        =                                       ( ctrFunctions )
   End Macro
   Macro elf@@codeFinaliser
-    Local theYapter, theMain
-    segment                             executable, readable
-      theMain                           compile@@parseFunction
-    end segment
+    Local theYapter, theMain, temp
+    temp                                theGenerator.init
+    If ( temp )
+      segment                           executable, readable
+        theMain                         parseFunction
+      end segment
+    Else
+      fail 'compile@@code', 'initalisation of the generator failed'
+    End If
     Purge parseYapterTable, elf@@codeFinaliser
+    lenQueque                           =                                       maxQueque
+    lenStack                            =                                       maxStack
+    lenTree                             =                                       maxTree
     numFunctions                        =                                       ( ctrFunctions )
   End Macro
 End Macro

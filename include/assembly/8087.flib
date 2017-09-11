@@ -1,0 +1,5 @@
+;nothing to include here
+x87@@isaVersion                         =                                       x87@@i8087
+Macro x87@@killMySelf
+  Purge loadFPUinstructions
+End Macro

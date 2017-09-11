@@ -1,0 +1,174 @@
+Include 'include/main.flib'
+Include 'include/display.flib'
+Include 'include/assembly/x86.flib'
+listing
+  elf@@code_8086
+    ;random@@randomiseOpcodes = true
+    ;random@@randomiseOpcodsize = true
+    testPositive                          =                                     1
+    ;( positive test, this should work )
+    ;{
+      Repeat ( testPositive )
+        ;( static operand size )
+        ;{
+          aam                           20                                                                                                  ;simple instruction
+          int                           2                                                                                                   ;simple instruction
+          hlt                                                                                                                               ;simple instruction
+          jz                            halt                                                                                                ;Jcc with sign extended 8 bit displacement
+          call                          0x0123:0x4567                                                                                       ;call far  procedure direct intersegment
+          call                          word  [ bp + si ]                                                                                   ;call near procedure at address in memory
+          call                          dword [ bx + di ]                                                                                   ;call far  procedure at address in memory
+          call                          halt                                                                                                ;call near procedure with sign-extended full displacement
+          call                          si                                                                                                  ;call near procedure at address in register
+          jmp                           halt                                                                                                ;jump to label short
+          jmp                           0x0123:0x4567                                                                                       ;jump direct intersegment
+          jmp                           si                                                                                                  ;jump to address in register
+          retf
+          retf                          0x2342
+          mov                           ss,                                     word [ si ]                                                 ;memory                   to    segment register
+          mov                           ds,                                     dx                                                          ;register                 to    segment register
+          mov                           dx,                                     es                                                          ;segment register         to    register
+          mov                           word [ si ],                            cs                                                          ;segment register         to    memory
+          push                          cs                                                                                                  ;old segment register
+          pop                           ds                                                                                                  ;old segment register
+          halt                          =                                       ( $ )                                                       ;label
+        ;}
+        nop
+        ;( 16-bit )
+        ;{
+          add                           si,                                     di                                                          ;register                 to    register
+          add                           word  [ di ],                           cx                                                          ;register                 to    memory
+          add                           ss:( 0x1337 ),                          cx                                                          ;register                 to    direct memory
+          add                           bp,                                     word  [ bp + si ]                                           ;memory                   to    register
+          add                           bp,                                     es:( 0x2342 )                                               ;memory                   to    register
+          add                           cx,                                     0x23                                                        ;immediate sign extended  to    register
+          add                           dx,                                     0x1337                                                      ;immediate                to    register
+          add                           word  [ bp ],                           0x23                                                        ;immediate sign extended  to    memory
+          add                           word  [ di ],                           0x2342                                                      ;immediate                to    memory
+          add                           ax,                                     0xabcd                                                      ;immediate                to    accumulator
+          ;---
+          neg                           ax                                                                                                  ;register
+          neg                           word  [ bx ]                                                                                        ;register
+          ;---
+          imul                          cx                                                                                                  ;1-operand imul           with  register
+          imul                          word  [ si ]                                                                                        ;1-operand imul           with  memory
+          imul                          dx:ax,                                  cx                                                          ;1-operand imul (better readable)
+          ;---
+          movsw                                                                                                                             ;simple instruction
+          ;---
+          shl                           ax,                                     1                                                           ;register                 with  1
+          shr                           ax,                                     cl                                                          ;register                 with  cl
+          ;---
+          inc                           ax                                                                                                  ;register
+          inc                           word  [ si + bx ]                                                                                   ;memory
+          ;---
+          lds                           ax,                                     [ bx ]                                                      ;lds address to ds + register
+          les                           ax,                                     [ bx ]                                                      ;lds address to es + register
+          lea                           ax,                                     [ bp + si ]                                                 ;load effective address to register
+          ;---
+          cmp                           dx,                                     bx                                                          ;register                 with  register
+          cmp                           word  [ si + bx + 0x1337 ],             cx                                                          ;register                 with  memory
+          cmp                           dx,                                     word  [ si + bx + 0x2342 ]                                  ;memory                   with  register
+          cmp                           si,                                     0x1234                                                      ;immediate value          with  register
+          cmp                           word  [ si + bx + 0x1337 ],             0x1234                                                      ;immediate value          with  memory
+          cmp                           ax,                                     0x2342                                                      ;immediate value          with  accumulator
+          ;---
+          test                          dx,                                     bx                                                          ;register                 with  register
+          test                          word  [ si + bx + 0x1337 ],             cx                                                          ;register                 with  memory
+          test                          dx,                                     word  [ si + bx + 0x2342 ]                                  ;memory                   with  register
+          test                          si,                                     0x1234                                                      ;immediate value          with  register
+          test                          word  [ si + bx + 0x1337 ],             0x1234                                                      ;immediate value          with  memory
+          test                          ax,                                     0x2342                                                      ;immediate value          with  accumulator
+          ;---
+          push                          bx                                                                                                  ;register
+          push                          word  [ si + bx + 0x23 ]                                                                            ;memory
+          pop                           cx                                                                                                  ;register
+          pop                           word  [ si + bp * 2 ]                                                                               ;memory
+          ;---
+          mov                           dx,                                     bx                                                          ;register                 to    register
+          mov                           word  [ di ],                           sp                                                          ;register                 to    memory
+          mov                           bx,                                     word  [ si ]                                                ;memory                   to    register
+          mov                           dx,                                     0x1337                                                      ;immediate                to    register
+          mov                           word  [ bx + si ],                      0x1337                                                      ;immediate                to    memory
+          mov                           ss:( 0x2342 ),                          ax                                                          ;accumulator              to    direct memory
+          mov                           ax,                                     ss:( 0x2342 )                                               ;direct memory            to    accumulator
+          ;---
+          xchg                          bx,                                     cx                                                          ;register                 with  register
+          xchg                          word  [ si ],                           bx                                                          ;register                 with  memory
+          xchg                          bx,                                     word  [ si ]                                                ;should be the same as before
+          ;---
+          in                            ax,                                     0x23                                                        ;immediate port           to    accumulator
+          in                            ax,                                     dx                                                          ;port given in dx         to    accumulator
+          out                           0x12,                                   ax                                                          ;immdeiate port           from  accumulator
+          out                           dx,                                     ax                                                          ;port given in dx         from  accumulator
+        ;}
+        nop
+        ;( 8-bit )
+        ;{
+          add                           ch,                                     ah                                                          ;register                 to    register
+          add                           byte  [ si + bx ],                      cl                                                          ;register                 to    memory
+          add                           ss:( 0x1337 ),                          cl                                                          ;register                 to    direct memory
+          add                           dh,                                     byte  [ bp + si ]                                           ;memory                   to    register
+          add                           dh,                                     es:( 0x2342 )                                               ;memory                   to    register
+          add                           dl,                                     0x42                                                        ;immediate                to    register
+          add                           byte  [ bp ],                           0x23                                                        ;immediate sign extended  to    memory
+          add                           byte  [ di ],                           0x23                                                        ;immediate                to    memory
+          add                           al,                                     0xab                                                        ;immediate                to    accumulator
+          ;---
+          neg                           al                                                                                                  ;register
+          neg                           byte  [ si + 0x3412 ]                                                                               ;register
+          ;---
+          imul                          cl                                                                                                  ;1-operand imul           with  register
+          imul                          byte  [ si ]                                                                                        ;1-operand imul           with  memory
+          imul                          ax,                                     cl                                                          ;1-operand imul (better readable)
+          ;---
+          movsb                                                                                                                             ;simple instruction
+          ;---
+          shl                           al,                                     1                                                           ;register                 with  1
+          shr                           al,                                     cl                                                          ;register                 with  cl
+          ;---
+          inc                           al                                                                                                  ;register
+          inc                           byte  [ si ]                                                                                        ;memory
+          ;---
+          cmp                           dl,                                     bl                                                          ;register                 with  register
+          cmp                           byte  [ si + bx + 0x1337 ],             cl                                                          ;register                 with  memory
+          cmp                           dl,                                     byte  [ si + bx + 0x2342 ]                                  ;memory                   with  register
+          cmp                           bl,                                     0x12                                                        ;immediate value          with  register
+          cmp                           byte  [ si + bx + 0x1337 ],             0x12                                                        ;immediate value          with  memory
+          cmp                           al,                                     0x23                                                        ;immediate value          with  accumulator
+          ;---
+          test                          dl,                                     bl                                                          ;register                 with  register
+          test                          byte  [ si + bx + 0x1337 ],             cl                                                          ;register                 with  memory
+          test                          dl,                                     byte  [ si + bx + 0x2342 ]                                  ;memory                   with  register
+          test                          bh,                                     0x12                                                        ;immediate value          with  register
+          test                          byte  [ si + bx + 0x1337 ],             0x12                                                        ;immediate value          with  memory
+          test                          al,                                     0x23                                                        ;immediate value          with  accumulator
+          ;---
+          mov                           dl,                                     bl                                                          ;register                 to    register
+          mov                           byte  [ di ],                           bh                                                          ;register                 to    memory
+          mov                           bl,                                     byte  [ si ]                                                ;memory                   to    register
+          mov                           dl,                                     0x13                                                        ;immediate                to    register
+          mov                           byte  [ si + bx ],                      0x13                                                        ;immediate                to    memory
+          mov                           ss:( 0x2342 ),                          al                                                          ;accumulator              to    direct memory
+          mov                           al,                                     ss:( 0x2342 )                                               ;direct memory            to    accumulator
+          ;---
+          xchg                          bl,                                     cl                                                          ;register                 with  register
+          xchg                          byte  [ si ],                           bl                                                          ;register                 with  memory
+          xchg                          bl,                                     byte  [ si ]                                                ;should be the same as before
+          ;---
+          in                            al,                                     0x23                                                        ;immediate port           to    accumulator
+          in                            al,                                     dx                                                          ;port given in dx         to    accumulator
+          out                           0x12,                                   al                                                          ;immediate port           from  accumulator
+          out                           dx,                                     al                                                          ;port given in dx         from  accumulator
+        ;}
+      End Repeat
+    ;}
+    ;( negative test, this should not work )
+    ;{
+      Repeat ( 1 - testPositive )
+;        rol                               ax,                                   20                                                          ;added in 80186
+      End Repeat
+    ;}
+  elf@@codeFinaliser
+  lister@@display
+end listing

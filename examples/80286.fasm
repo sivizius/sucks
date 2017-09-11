@@ -1,0 +1,29 @@
+Include 'include/main.flib'
+Include 'include/display.flib'
+Include 'include/assembly/x86.flib'
+listing
+  elf@@code_80286
+    ;random@@randomiseOpcodes = true
+    ;random@@randomiseOpcodeSize = true
+    testPositive                          =                                     1
+    ;( positive test, this should work )
+    ;{
+      Repeat ( testPositive )
+        cts
+        lar                             cx,                                     dx
+        lar                             bx,                                     word [ di ]
+        sldt                            ax
+        sldt                            word [ bx ]
+        lgdt                            pword [ bx ]
+        arpl                            cx,                                     dx
+        arpl                            word [ di ],                            bx
+      End Repeat
+    ;}
+    ;( negative test, this should not work )
+    ;{
+      Repeat ( 1 - testPositive )
+      End Repeat
+    ;}
+  elf@@codeFinaliser
+  lister@@display
+end listing

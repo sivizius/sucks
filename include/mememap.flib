@@ -10,10 +10,10 @@ Virtual                                 At mememap@@ptrBuffer
   mememap@@lblBuffer::
     rb                                  mememap@@lenBuffer
 End Virtual
-Struc mememap@@allocate                 size*
+Struc mememap@@allocate                 length*
   .                                     =                                       ( mememap@@ptrBuffer )
-  .size                                 =                                       ( size )
-  mememap@@ptrBuffer                    =                                       ( mememap@@ptrBuffer + size )
+  .size                                 =                                       ( length )
+  mememap@@ptrBuffer                    =                                       ( mememap@@ptrBuffer + length )
 End Struc
 Macro mememap@@free                     buffer*
 End Macro

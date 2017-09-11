@@ -5,11 +5,11 @@ Macro format@@addFormat                 theName*,                               
   format@@lstFormats                    Equ                                     theName,            theInit,            theStop
 End Macro
 Macro format                            someArguments&
-  Local item
-  Local theFormat, theRest, theName, theInit, theStop, theFinal
+  Local theFinal, foundFormat
   Macro import                          module*
     Include 'include/' # module # '.flibg'
   End Macro
+  foundFormat                           =                                       false
   Match                                 theFormat theRest,                      someArguments
     Irpv                                item,                                   format@@lstFormats
       Match                             theName =, theInit =, theStop,          item
@@ -22,9 +22,14 @@ Macro format                            someArguments&
           Macro theFinal
             theStop
           End Macro
+          foundFormat                   =                                       true
+          Break
         End Match
       End Match
     End Irpv
+    If ( foundFormat = false )
+      fail 'format', 'unknown format »', `theFormat, '«'
+    End If
   Else Match                            theFormat,                              someArguments
     Irpv                                item,                                   format@@lstFormats
       Match                             theName =, theInit =, theStop,          item
@@ -37,18 +42,23 @@ Macro format                            someArguments&
           Macro theFinal
             theStop
           End Macro
+          foundFormat                   =                                       true
+          Break
         End Match
       End Match
     End Irpv
+    If ( foundFormat = false )
+      fail 'format', 'unknown format »', `theFormat, '«'
+    End If
   Else
     fail 'format', 'cannot match'
   End Match
   Macro end?.format!
     indentLess
     displayOnNewLine '}'
-    Match                               any,                                    format@@lstFormats
+    ;Match                               any,                                    format@@lstFormats
       theFinal
-    End Match
+    ;End Match
     Purge import
     Purge end?.format
   End Macro
@@ -114,6 +124,7 @@ End Macro
   Include 'include/format/elf.flib'
   Include 'include/format/tinafs.flib'
   Include 'include/format/uf4.flib'
+  Include 'include/assembly/x86.flib'
   ;add custom formats here:
 ;}
 Postpone

@@ -1,0 +1,58 @@
+Include 'include/assembly/8086.flib'
+x86@@isaVersion                         =                                       x86@@i80186
+use16
+Purge pusha?, popa?, outsb?, outsw?, insb?, insw?, enter?, leave?
+Irp                                     < name, opcode >, \
+                                        pusha,  0x60, popa,   0x61, insb,   0x6c, insw,   0x6d, \
+                                        outsb,  0x6e, outsw,  0x6f, leave,  0xc9
+  Macro name?
+    lister@@putInstruction              `name
+    x86@@putOpcode                      opcode
+  End Macro
+End Irp
+Macro enter?                            size*,                                  nestLevel:( null )
+  Local srcOperand, dstOperand, coin
+  lister@@putInstruction                'enter'
+  srcOperand                            x86@@parseOperand                       size
+  dstOperand                            x86@@parseOperand                       nestLevel
+  If (( srcOperand.type = 'immediate value' ) & (( srcOperand.value and 0xffff ) = srcOperand.value ) & \
+      ( dstOperand.type = 'immediate value' ) & (( dstOperand.value and   0xff ) = dstOperand.value ))
+    ;nesting level is a positive 8 bit value below 32, but the cpu does a ( imm8 mod 32 ), so values above are also allowed
+    ;allowes some randomisation, but enter is not very fast, so nobody uses this anymore
+    x86@@putOpcode                      0xc8
+    dw srcOperand.value
+    If ( random@@randomiseOpcodes )
+      coin                              random@@random
+      coin                              =                                       ( coin and 0xe0 )
+    Else
+      coin                              =                                       null
+    End If
+    db ( coin or dstOperand.value )
+    lister@@putOperand                  word ( srcOperand.value )
+    lister@@putOperand                  byte ( dstOperand.value )
+  Else
+    fail 'enter', 'invalid operand'
+  End If
+End Macro
+Macro bound?                            dst*,                                   src*
+  Local srcOperand, dstOperand
+  lister@@putInstruction                'bound'
+  srcOperand                            x86@@parseOperand                       src
+  dstOperand                            x86@@parseOperand                       dst
+  If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'memory' ))
+    If ((( dstOperand.size = word  ) & (( srcOperand.size = dword ) | ( srcOperand.size = null ))) | \
+        (( dstOperand.size = dword ) & (( srcOperand.size = qword ) | ( srcOperand.size = null ))))
+      lister@@putOperand                dstOperand.symbol
+      x86@@emitInstruction              'bound',  0x62,               dstOperand.size,    dstOperand.register,                    srcOperand
+    Else
+      fail 'bound', 'invalid operand sizes'
+    End If
+  Else
+    fail 'bound', 'invalid operand'
+  End If
+End Macro
+Macro x86@@killMySelf
+  x86@@killMySelf
+  Purge x86@@killMySelf
+  Purge pusha?, popa?, outsb?, outsw?, insb?, insw?, enter?, leave?
+End Macro

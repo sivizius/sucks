@@ -1,0 +1,949 @@
+Include 'include/assembly/lister.flib'
+;( some constants )
+;{
+  ;( direction bit )
+  ;{
+    x86@@toMemory                       =                                       0
+    x86@@fromRegister                   =                                       x86@@toMemory
+    x86@@toRegister                     =                                       2
+  ;}
+  ;( expected r/m operand in x86@@emitInstruction )
+  ;{
+    x86@@regTypeDefault                 =                                       0                   ;e.g. [mem] and eax, ecx, etc.
+    x86@@regTypeMemory                  =                                       1                   ;only [mem], e.g. lea allows only memory as operand
+    x86@@regTypeMM                      =                                       2                   ;e.g. mm0, mm1, etc.
+    x86@@regTypeXMM                     =                                       3                   ;e.g. xmm0, xmm1, etc.
+  ;}
+  ;( x86@@isaVersion )
+  ;{
+    x86@@i8086                          =                                       0
+    x86@@i8088                          =                                       0
+    x86@@i80186                         =                                       1
+    x86@@i80188                         =                                       1
+    x86@@i80286                         =                                       2
+    x86@@i80386                         =                                       3
+    x86@@i80486                         =                                       4
+    x86@@iPentium                       =                                       5
+    x86@@iPentiumII                     =                                       6
+  ;}
+  ;( x87@@isaVersion )
+  ;{
+    x87@@i8087                          =                                       0
+    x87@@i80187                         =                                       1
+    x87@@i80287                         =                                       2
+    x87@@i80387                         =                                       3
+  ;}
+;}
+;( the registers )
+;{
+  ;( general purpose register )
+  ;{
+    x86@@regAX                          =                                       0
+    x86@@regCX                          =                                       1
+    x86@@regDX                          =                                       2
+    x86@@regBX                          =                                       3
+    x86@@regSP                          =                                       4
+    x86@@regBP                          =                                       5
+    x86@@regSI                          =                                       6
+    x86@@regDI                          =                                       7
+    Element x86.reg
+    Element x86.r8	: x86.reg + ( byte )
+    Element al? : x86.r8    + x86@@regAX
+    Element cl? : x86.r8    + x86@@regCX
+    Element dl? : x86.r8    + x86@@regDX
+    Element bl? : x86.r8    + x86@@regBX
+    Element ah? : x86.r8    + x86@@regSP
+    Element ch? : x86.r8    + x86@@regBP
+    Element dh? : x86.r8    + x86@@regSI
+    Element bh? : x86.r8    + x86@@regDI
+    Element x86.r16 : x86.reg + ( word )
+    Element ax? : x86.r16   + x86@@regAX
+    Element cx? : x86.r16   + x86@@regCX
+    Element dx? : x86.r16   + x86@@regDX
+    Element bx? : x86.r16   + x86@@regBX
+    Element sp? : x86.r16   + x86@@regSP
+    Element bp? : x86.r16   + x86@@regBP
+    Element si? : x86.r16   + x86@@regSI
+    Element di? : x86.r16   + x86@@regDI
+    Element x86.r32 : x86.reg + ( dword )
+    Element eax? : x86.r32  + x86@@regAX
+    Element ecx? : x86.r32  + x86@@regCX
+    Element edx? : x86.r32  + x86@@regDX
+    Element ebx? : x86.r32  + x86@@regBX
+    Element esp? : x86.r32  + x86@@regSP
+    Element ebp? : x86.r32  + x86@@regBP
+    Element esi? : x86.r32  + x86@@regSI
+    Element edi? : x86.r32  + x86@@regDI
+    Element x86.r64 : x86.reg + ( qword )
+    Element rax? : x86.r64  + x86@@regAX
+    Element rcx? : x86.r64  + x86@@regCX
+    Element rdx? : x86.r64  + x86@@regDX
+    Element rbx? : x86.r64  + x86@@regBX
+    Element rsp? : x86.r64  + x86@@regSP
+    Element rbp? : x86.r64  + x86@@regBP
+    Element rsi? : x86.r64  + x86@@regSI
+    Element rdi? : x86.r64  + x86@@regDI
+    ;r8, r9, r10, r11, r12, r13, r14, 15
+  ;}
+  ;( segment registers )
+  ;{
+    x86@@sregES                         =                                       0
+    x86@@sregCS                         =                                       1
+    x86@@sregSS                         =                                       2
+    x86@@sregDS                         =                                       3
+    x86@@sregFS                         =                                       4
+    x86@@sregGS                         =                                       5
+    Element x86.sreg
+    Element es? : x86.sreg  + x86@@sregES
+    Element cs? : x86.sreg  + x86@@sregCS
+    Element ss? : x86.sreg  + x86@@sregSS
+    Element ds? : x86.sreg  + x86@@sregDS
+    Element fs? : x86.sreg  + x86@@sregFS
+    Element gs? : x86.sreg  + x86@@sregGS
+  ;}
+  ;( control registers )
+  ;{
+    Element x86.creg
+    Element cr0? : x86.creg + 0
+    Element cr1? : x86.creg + 1
+    Element cr2? : x86.creg + 2
+    Element cr3? : x86.creg + 3
+    Element cr4? : x86.creg + 4
+    Element cr5? : x86.creg + 5
+    Element cr6? : x86.creg + 6
+    Element cr7? : x86.creg + 7
+    Element cr8? : x86.creg + 8
+  ;}
+  ;( debug registers )
+  ;{
+    Element x86.dreg
+    Element dr0? : x86.dreg + 0
+    Element dr1? : x86.dreg + 1
+    Element dr2? : x86.dreg + 2
+    Element dr3? : x86.dreg + 3
+    Element dr4? : x86.dreg + 4
+    Element dr5? : x86.dreg + 5
+    Element dr6? : x86.dreg + 6
+    Element dr7? : x86.dreg + 7
+  ;}
+  ;( test registers )
+  ;{
+    Element x86.treg
+    Element tr6? : x86.treg + 6
+    Element tr7? : x86.treg + 7
+  ;}
+  ;( control registers )
+  ;{
+    Element x86.mreg
+    Element mm0? : x86.mreg + 0
+    Element mm1? : x86.mreg + 1
+    Element mm2? : x86.mreg + 2
+    Element mm3? : x86.mreg + 3
+    Element mm4? : x86.mreg + 4
+    Element mm5? : x86.mreg + 5
+    Element mm6? : x86.mreg + 6
+    Element mm7? : x86.mreg + 7
+  ;}
+;}
+Struc x86@@getImmediateValue            immediate*,                             length:( null )
+  .type                                 Equ                                     'immediate value'
+  .size                                 =                                       length
+  .value                                =                                       immediate
+End Struc
+Struc x86@@getDXAX                      length*
+  .size                                 =                                       length
+  If      ( length = word  )
+    .type                               Equ                                     'dx:ax'
+  Else If ( length = dword )
+    .type                               Equ                                     'edx:eax'
+  Else If ( length = qword )
+    .type                               Equ                                     'rdx:rax'
+  Else
+    fail 'x86@@getDXAX', 'invalid size'
+  End If
+End Struc
+Struc x86@@getMemory16                  length*,            base*,              index*,                                 disp:( null ),      sreg:( nil )
+  Local theIndex, theBase
+  .type                                 Equ                                     'memory'
+  .size                                 =                                       length
+  .segment                              =                                       sreg
+  If ( base = nil )
+    theBase                             =                                       null
+  Else
+    Element theBase  : x86.r16 + base
+  End If
+  If ( index = nil )
+    theIndex                            =                                       null
+  Else
+    Element theIndex : x86.r16 + index
+  End If
+  .address                              =                                       theIndex + theBase + disp
+End Struc
+Struc x86@@getMemory32                  length*,            base*,              index*,             factor:( 1 ),       disp:( null ),      sreg:( nil )
+  Local theIndex, theBase
+  .type                                 Equ                                     'memory'
+  .size                                 =                                       length
+  .segment                              =                                       sreg
+  If ( base = nil )
+    theBase                             =                                       null
+  Else
+    Element theBase  : x86.r32 + base
+  End If
+  If ( index = nil )
+    theIndex                            =                                       null
+  Else
+    Element theIndex : x86.r32 + index
+  End If
+  .address                              =                                       factor * theIndex + theBase + disp
+End Struc
+Struc x86@@getPointer                   segm*,              offs*,              length:( null )
+  .type                                 Equ                                     'pointer'
+  .size                                 =                                       length
+  .segment                              =                                       segm
+  .address                              =                                       offs
+End Struc
+Struc x86@@getRegister                  number*,                                length*
+  .type                                 Equ                                     'register'
+  .size                                 =                                       length
+  .register                             =                                       number
+  If      ( length = byte  )
+    Irp                                 temp,                                   'al', 'cl', 'dl', 'bl', 'ah', 'ch', 'dh', 'bh'
+      Indx                              ( .register + 1 )
+      .symbol                           Equ                                     temp
+    End Irp
+  Else If ( length = word  )
+    Irp                                 temp,                                   'ax', 'cx', 'dx', 'bx', 'sp', 'bp', 'si', 'di'
+      Indx                              ( .register + 1 )
+      .symbol                           Equ                                     temp
+    End Irp
+  Else If ( length = dword )
+    Irp                                 temp,                                   'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi'
+      Indx                              ( .register + 1 )
+      .symbol                           Equ                                     temp
+    End Irp
+  Else If ( length = qword )
+    Irp                                 temp,                                   'rax', 'rcx', 'rdx', 'rbx', 'rsp', 'rbp', 'rsi', 'rdi', 'r8', 'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15'
+      Indx                              ( .register + 1 )
+      .symbol                           Equ                                     temp
+    End Irp
+  Else
+    fail 'x86@@getRegister', 'invalid register size'
+  End If
+End Struc
+Struc x86@@getSegmentRegister           number*
+  .type                                 Equ                                     'segment register'
+  .size                                 =                                       word
+  .register                             =                                       number
+  Irp                                   temp,                                   'es', 'cs', 'ss', 'ds', 'fs', 'gs'
+    Indx                                ( .register + 1 )
+    .symbol                             Equ                                     temp
+  End Irp
+End Struc
+Struc x86@@getControlRegister           number*
+  .type                                 Equ                                     'control register'
+  .size                                 =                                       null
+  .register                             =                                       number
+  Irp                                   temp,                                   'cr0', 'cr1', 'cr2', 'cr3', 'cr4', 'cr5', 'cr6', 'cr7', 'cr8'
+    Indx                                ( .register + 1 )
+    .symbol                             Equ                                     temp
+  End Irp
+End Struc
+Struc x86@@getDebugRegister             number*
+  .type                                 Equ                                     'debug register'
+  .size                                 =                                       null
+  .register                             =                                       number
+  Irp                                   temp,                                   'dr0', 'dr1', 'dr2', 'dr3', 'dr4', 'dr5', 'dr6', 'dr7'
+    Indx                                ( .register + 1 )
+    .symbol                             Equ                                     temp
+  End Irp
+End Struc
+Struc x86@@getTestRegister              number*
+  .type                                 Equ                                     'test register'
+  .size                                 =                                       null
+  .register                             =                                       number
+  Irp                                   temp,                                   'tr0', 'tr1', 'tr2', 'tr3', 'tr4', 'tr5', 'tr6', 'tr7'
+    Indx                                ( .register + 1 )
+    .symbol                             Equ                                     temp
+  End Irp
+End Struc
+Struc x86@@parseOperand                 operand*
+  .type                                 Equ                                     'invalid'
+  Match                                 [ sreg=:addr ],                         operand
+    .type                               Equ                                     'memory'
+    .size                               =                                       length
+    .address                            =                                       addr
+    .segment                            =                                       sreg
+  Else Match                            [ addr ],                               operand
+    .type                               Equ                                     'memory'
+    .size                               =                                       null
+    .address                            =                                       addr
+    .segment                            =                                       nil
+  Else Match                            length [ sreg=:addr ],                  operand
+    .type                               Equ                                     'memory'
+    .size                               =                                       length
+    .address                            =                                       addr
+    .segment                            =                                       sreg
+  Else Match                            length [ addr ],                        operand
+    .type                               Equ                                     'memory'
+    .size                               =                                       length
+    .address                            =                                       addr
+    .segment                            =                                       nil
+  Else Match                            length sregister=:offs,                 operand
+    If      (( sregister metadata 1 ) relativeto x86.sreg )
+      .type                             Equ                                     'memory'
+      .size                             =                                       length
+      .address                          =                                       offs
+      .segment                          =                                       sregister
+    Else If ((( elementsof sregister ) = 0 ) & (( sregister and 0xffff ) = sregister ))
+      .type                             Equ                                     'pointer'
+      .size                             =                                       length
+      .address                          =                                       offs
+      .segment                          =                                       sregister
+    Else
+      fail 'x86@@parseOperand', 'invalid pointer'
+    End If
+  Else Match                            sregister=:offs,                        operand
+    If      (( sregister metadata 1 ) relativeto x86.sreg )
+      .type                             Equ                                     'memory'
+      .size                             =                                       null
+      .address                          =                                       offs
+      .segment                          =                                       sregister
+    Else If ((( elementsof sregister ) = 0 ) & (( sregister and 0xffff ) = sregister ))
+      .type                             Equ                                     'pointer'
+      .size                             =                                       null
+      .address                          =                                       offs
+      .segment                          =                                       sregister
+    Else If ( (( sregister metadata 1 ) relativeto x86.r16 ) & ((( sregister metadata 1 ) scale 0 ) = x86@@regDX ) & \
+              (( offs      metadata 1 ) relativeto x86.r16 ) & ((( offs      metadata 1 ) scale 0 ) = x86@@regAX ) )
+      .type                             Equ                                     'dx:ax'
+      .size                             =                                       word
+    Else If ( (( sregister metadata 1 ) relativeto x86.r32 ) & ((( sregister metadata 1 ) scale 0 ) = x86@@regDX ) & \
+              (( offs      metadata 1 ) relativeto x86.r32 ) & ((( offs      metadata 1 ) scale 0 ) = x86@@regAX ) )
+      .type                             Equ                                     'edx:eax'
+      .size                             =                                       dword
+    Else If ( (( sregister metadata 1 ) relativeto x86.r64 ) & ((( sregister metadata 1 ) scale 0 ) = x86@@regDX ) & \
+              (( offs      metadata 1 ) relativeto x86.r64 ) & ((( offs      metadata 1 ) scale 0 ) = x86@@regAX ) )
+      .type                             Equ                                     'rdx:rax'
+      .size                             =                                       qword
+    Else
+      fail 'x86@@parseOperand', 'invalid pointer'
+    End If
+  Else Match                            length ( immediate ),                   operand
+    If (( elementsof immediate ) = 0 )
+      .type                             Equ                                     'immediate value'
+      .value                            =                                       immediate
+      .size                             =                                       length
+    Else
+      fail 'x86@@parseOperand', 'invalid immediate value'
+    End If
+  Else
+    If (( elementsof operand ) = 0 )
+      .type                             Equ                                     'immediate value'
+      .value                            =                                       operand
+      .size                             =                                       null
+    Else
+      ;:operand                         = dx
+      ;:operand metadata 1              = x86.r16 + 2
+      ;:operand metadata 1 metadata 1   = x86.reg
+      ;:operand                         = es
+      ;:operand metadata 1              = x86.sreg + 0
+      If      (( operand metadata 1 ) relativeto x86.r8 )
+        .type                           Equ                                     'register'
+        .size                           =                                       byte
+        .register                       =                                       (( operand metadata 1 ) scale 0 )
+        Irp                             temp,                                   'al', 'cl', 'dl', 'bl', 'ah', 'ch', 'dh', 'bh'
+          Indx                          ( .register + 1 )
+          .symbol                       Equ                                     temp
+        End Irp
+      Else If (( operand metadata 1 ) relativeto x86.r16 )
+        .type                           Equ                                     'register'
+        .size                           =                                       word
+        .register                       =                                       (( operand metadata 1 ) scale 0 )
+        Irp                             temp,                                   'ax', 'cx', 'dx', 'bx', 'sp', 'bp', 'si', 'di'
+          Indx                          ( .register + 1 )
+          .symbol                       Equ                                     temp
+        End Irp
+      Else If (( operand metadata 1 ) relativeto x86.r32 )
+        .type                           Equ                                     'register'
+        .size                           =                                       dword
+        .register                       =                                       (( operand metadata 1 ) scale 0 )
+        Irp                             temp,                                   'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi'
+          Indx                          ( .register + 1 )
+          .symbol                       Equ                                     temp
+        End Irp
+      Else If (( operand metadata 1 ) relativeto x86.r64 )
+        .type                           Equ                                     'register'
+        .size                           =                                       qword
+        .register                       =                                       (( operand metadata 1 ) scale 0 )
+        Irp                             temp,                                   'rax', 'rcx', 'rdx', 'rbx', 'rsp', 'rbp', 'rsi', 'rdi', 'r8', 'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15'
+          Indx                          ( .register + 1 )
+          .symbol                       Equ                                     temp
+        End Irp
+      Else If (( operand metadata 1 ) relativeto x86.sreg )
+        .type                           Equ                                     'segment register'
+        .size                           =                                       word
+        .register                       =                                       (( operand metadata 1 ) scale 0 )
+        Irp                             temp,                                   'es', 'cs', 'ss', 'ds', 'fs', 'gs'
+          Indx                          ( .register + 1 )
+          .symbol                       Equ                                     temp
+        End Irp
+      Else If (( operand metadata 1 ) relativeto x86.creg )
+        .type                           Equ                                     'control register'
+        .size                           =                                       null
+        .register                       =                                       (( operand metadata 1 ) scale 0 )
+        Irp                             temp,                                   'cr0', 'cr1', 'cr2', 'cr3', 'cr4', 'cr5', 'cr6', 'cr7', 'cr8'
+          Indx                          ( .register + 1 )
+          .symbol                       Equ                                     temp
+        End Irp
+      Else If (( operand metadata 1 ) relativeto x86.dreg )
+        .type                           Equ                                     'debug register'
+        .size                           =                                       null
+        .register                       =                                       (( operand metadata 1 ) scale 0 )
+        Irp                             temp,                                   'dr0', 'dr1', 'dr2', 'dr3', 'dr4', 'dr5', 'dr6', 'dr7'
+          Indx                          ( .register + 1 )
+          .symbol                       Equ                                     temp
+        End Irp
+      Else If (( operand metadata 1 ) relativeto x86.treg )
+        .type                           Equ                                     'test register'
+        .size                           =                                       null
+        .register                       =                                       (( operand metadata 1 ) scale 0 )
+        Irp                             temp,                                   'tr0', 'tr1', 'tr2', 'tr3', 'tr4', 'tr5', 'tr6', 'tr7'
+          Indx                          ( .register + 1 )
+          .symbol                       Equ                                     temp
+        End Irp
+      Else If (( operand metadata 1 ) relativeto x86.mreg )                     ;Multi Media eXtension
+        .type                           Equ                                     'mm'
+        .size                           =                                       null
+        .register                       =                                       (( operand metadata 1 ) scale 0 )
+        Irp                             temp,                                   'mm0', 'mm1', 'mm2', 'mm3', 'mm4', 'mm5', 'mm6', 'mm7'
+          Indx                          ( .register + 1 )
+          .symbol                       Equ                                     temp
+        End Irp
+      Else
+        fail 'x86@@parseOperand', 'invalid operand2'
+      End If
+    End If
+  End Match
+End Struc
+Macro x86@@segmentAddressing            name*,              segment*,           strSize,            length*,            displacement*
+  Local theSReg, flip
+  If      (( segment metadata 1 ) relativeto x86.sreg )
+    theSReg                             =                                       (( segment metadata 1 ) scale 0 )
+  Else If ( segment = nil )
+    theSReg                             =                                       x86@@sregDS
+  Else
+    fail name, 'segment register expected'
+  End If
+  If ( random@@randomiseOpcodeSize )
+    flip                                random@@random                          2
+  Else
+    flip                                =                                       false
+  End If
+  If (( theSReg <> x86@@sregDS ) | ( flip ))
+    If      (( theSReg <= x86@@sregDS ))
+      x86@@addPrefix                    ( 0x26 or ( theSReg shl 3 ))
+    Else If (( theSReg <= x86@@sregGS ) & ( x86@@isaVersion >= x86@@i80386 ))
+      x86@@addPrefix                    ( 0x60 + theSReg )
+    Else
+      fail name, 'unknown segment register'
+    End If
+  End If
+  Irp                                   item,                                   'es', 'cs', 'ss', 'ds', 'fs', 'gs'
+    Indx                                ( theSReg + 1 )
+    If ( displacement )
+      lister@@putOperand                strSize, item, ':', length displacement
+    Else
+      lister@@putOperand                strSize, item, ':ZERO'
+    End If
+    Break
+  End Irp
+End Macro
+Macro x86@@emitInstruction              name*,    opcode*,  opSize*,            regField*,                    opRegMem*,                    regType:( x86@@regTypeDefault )
+  Local temp, coin, flip
+  Local modField, memField
+  Local factor, index, base
+  Local strSize
+  Local disp, length
+  If      ( ~ Defined opRegMem.type )
+    fail 'x86@@emitInstruction', 'invalid operand3'
+  End If
+  ;( operand-size prefix )
+  ;{
+    If ((( opSize = dword ) & ( x86@@defaultOperandSize = 16 )) | \
+        (( opSize = word  ) & ( x86@@defaultOperandSize = 32 )))
+      x86@@addPrefix                    0x66
+    End If
+  ;}
+  ;( opSize-string )
+  ;{
+    If      ( opRegMem.size = null )
+      If      ( opSize = null )
+        strSize                         Equ                                     'ptr  '
+      Else If ( opSize = byte  )
+        strSize                         Equ                                     'byte '
+      Else If ( opSize = word  )
+        strSize                         Equ                                     'word '
+      Else If ( opSize = dword )
+        strSize                         Equ                                     'dword'
+      Else If ( opSize = pword )
+        strSize                         Equ                                     'pword'
+      Else If ( opSize = qword )
+        strSize                         Equ                                     'qword'
+      Else If ( opSize = xword )
+        strSize                         Equ                                     'xword'
+      Else
+        strSize                         Equ                                     decimal opSize
+      End If
+    Else If ( opRegMem.size = byte )
+      strSize                           Equ                                     'byte '
+    Else If ( opRegMem.size = word )
+      strSize                           Equ                                     'word '
+    Else If ( opRegMem.size = dword )
+      strSize                           Equ                                     'dword'
+    Else If ( opRegMem.size = pword )
+      strSize                           Equ                                     'pword'
+    Else If ( opRegMem.size = qword )
+      strSize                           Equ                                     'qword'
+    Else If ( opRegMem.size = xword )
+      strSize                           Equ                                     'xword'
+    Else
+      strSize                           Equ                                     decimal opRegMem.size
+    End If
+  ;}
+  If    ( (( opRegMem.type = 'register' ) & ( regType = x86@@regTypeDefault )) | \
+          (( opRegMem.type = 'mm' )       & ( regType = x86@@regTypeMM      )) | \
+          (( opRegMem.type = 'xmm' )      & ( regType = x86@@regTypeXMM     )) )
+    factor                              =                                       null
+    length                              =                                       null
+    modField                            =                                       0xc0
+    memField                            =                                       opRegMem.register
+    lister@@putOperand                  opRegMem.symbol
+  Else If (( opRegMem.type = 'memory' ) & ( x86@@defaultAddressSize = 16 ))     ;( 16 bit addressing )
+    factor                              =                                       null
+    ;( address-size prefix )
+    ;{
+      If ( x86@@defaultOperandSize = 32 )
+        x86@@addPrefix                  0x67
+      End If
+    ;}
+    disp                                =                                       ( opRegMem.address scale 0 )
+    If      ( disp = null )
+      length                            =                                       null
+      modField                          =                                       0x00
+    Else If (( disp >= -0x0080 ) & ( disp <= 0x007f ))
+      length                            =                                       byte
+      modField                          =                                       0x40
+    Else If (( disp >= -0x8000 ) & ( disp <= 0x7fff ))
+      length                            =                                       word
+      modField                          =                                       0x80
+    Else
+      fail name, 'too large displacement (address-size is 16 bit)'
+    End If
+    If      (( elementsof opRegMem.address ) = 0 )                              ;( 16 bit addressing – displacement only )
+      modField                          =                                       0x00
+      memField                          =                                       0x06
+      length                            =                                       word
+      x86@@segmentAddressing            name,               opRegMem.segment,   strSize,            length,             disp
+    Else If (( elementsof opRegMem.address ) = 1 )                              ;( 16 bit addressing – 1 register )
+      If ( opRegMem.segment <> nil )
+        fail `name, 'does not expect a segment-register'
+      End If
+      If      ((( opRegMem.address metadata 1 ) scale 0 ) = x86@@regSI )
+        memField                        =                                       4
+      Else If ((( opRegMem.address metadata 1 ) scale 0 ) = x86@@regDI )
+        memField                        =                                       5
+      Else If ((( opRegMem.address metadata 1 ) scale 0 ) = x86@@regBP )
+        If ( length = null )
+          length                        =                                       byte
+          modField                      =                                       0x40
+        End If
+        memField                        =                                       6
+      Else If ((( opRegMem.address metadata 1 ) scale 0 ) = x86@@regBX )
+        memField                        =                                       7
+      Else
+        fail name, 'invalid register'
+      End If
+      Irp                               item,                                   'si', 'di', 'bp', 'bx'
+        Indx                            ( memField - 3 )
+        If ( disp )
+          lister@@putOperand            strSize, ' [ ', item, ' + ', length disp, ' ]'
+        Else
+          lister@@putOperand            strSize, ' [ ', item,                     ' ]'
+        End If
+        Break
+      End Irp
+    Else If (( elementsof opRegMem.address ) = 2 )                              ;( 16 bit addressing – 2 register )
+      If ( opRegMem.segment <> nil )
+        fail `name, 'does not expect a segment-register'
+      End If
+      If      ( ((( opRegMem.address metadata 1 ) scale 0 ) = x86@@regSI ) | \
+                ((( opRegMem.address metadata 2 ) scale 0 ) = x86@@regSI ) )
+        memField                        =                                       0
+      Else If ( ((( opRegMem.address metadata 1 ) scale 0 ) = x86@@regDI ) | \
+                ((( opRegMem.address metadata 2 ) scale 0 ) = x86@@regDI ) )
+        memField                        =                                       1
+      Else
+        fail name, 'invalid combination of registers for address calculation'
+      End If
+      If      ( ((( opRegMem.address metadata 1 ) scale 0 ) = x86@@regBP ) | \
+                ((( opRegMem.address metadata 2 ) scale 0 ) = x86@@regBP ) )
+        memField                        =                                       ( memField + 2 )
+      Else If ( ((( opRegMem.address metadata 1 ) scale 0 ) = x86@@regBX ) | \
+                ((( opRegMem.address metadata 2 ) scale 0 ) = x86@@regBX ) )
+        memField                        =                                       ( memField + 0 )
+      Else
+        fail name, 'invalid combination of registers for address calculation'
+      End If
+      Irp                               item,                                   'bx + si', 'bx + di', 'bp + si', 'bp + di'
+        Indx                            ( memField + 1 )
+        If ( disp )
+          lister@@putOperand            strSize, ' [ ', item, ' + ', length disp, ' ]'
+        Else
+          lister@@putOperand            strSize, ' [ ', item,                     ' ]'
+        End If
+        Break
+      End Irp
+    Else
+      fail name, 'cannot encode address'
+    End If
+  Else If (( opRegMem.type = 'memory' ) & ( x86@@defaultAddressSize = 32 ))     ;( 32 bit addressing )
+    ;( address-size prefix )
+    ;{
+      If ( x86@@defaultOperandSize = 16 )
+        x86@@addPrefix                  0x67
+      End If
+    ;}
+    disp                                =                                       ( opRegMem.address scale 0 )
+    If      ( disp = null )
+      length                            =                                       null
+      modField                          =                                       0x00
+    Else If (( disp >= -0x00000080 ) & ( disp <= 0x0000007f ))
+      length                            =                                       byte
+      modField                          =                                       0x40
+    Else If (( disp >= -0x80000000 ) & ( disp <= 0x7fffffff ))
+      length                            =                                       dword
+      modField                          =                                       0x80
+    Else
+      fail name, 'too large displacement (address-size is 32 bit)'
+    End If
+    If      (( elementsof opRegMem.address ) = 0 )                              ;( 32 bit addressing – displacement only )
+      base                              =                                       nil
+      factor                            =                                       null
+      modField                          =                                       0x00
+      memField                          =                                       5
+      x86@@segmentAddressing            name,               opRegMem.segment,   strSize,            length,             disp
+    Else If (( elementsof opRegMem.address ) = 1 )                              ;( 32 bit addressing – 1 register )
+      If ( random@@randomiseOpcodeSize )
+        coin                            random@@random                          6
+      Else
+        coin                            =                                       4
+      End If
+      memField                          =                                       4                   ;sib
+      factor                            =                                       ( opRegMem.address scale 1 )
+      index                             =                                       (( opRegMem.address metadata 1 ) scale 0 )
+      Irp                               item,                                   'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi'
+        Indx                            ( index + 1 )
+        If      (( length ) & ( factor = 1 ))
+          lister@@putOperand            strSize, ' [ ',                         item, ' + ', length disp, ' ]'
+        Else If ( length )
+          lister@@putOperand            strSize, ' [ ', decimal factor, ' * ',  item, ' + ', length disp, ' ]'
+        Else If (             ( factor = 1 ))
+          lister@@putOperand            strSize, ' [ ',                         item,                     ' ]'
+        Else
+          lister@@putOperand            strSize, ' [ ', decimal factor, ' * ',  item,                     ' ]'
+        End If
+        Break
+      End Irp
+      If      (( factor = 1 ))
+        If (( index = x86@@regBP ) & ( length = null ))
+          length                        =                                       byte
+          modField                      =                                       0x40
+        End If
+        If      ( index = x86@@regSP )
+          base                          =                                       x86@@regSP          ;1*esp+none
+        Else If ( coin = 4 )            ;default
+          factor                        =                                       null
+          memField                      =                                       index
+        Else If ( coin = 5 )
+          base                          =                                       nil                 ;1*reg+none
+        Else
+          factor                        =                                       ( 1 shl coin )
+          base                          =                                       index               ;x*none+reg
+          index                         =                                       x86@@regSP
+        End If
+      Else If (( factor = 2 ) & ( index = x86@@regSP ))
+        fail name, 'esp cannot be scaled'
+      Else If (( factor = 2 ) & ( coin > 2 ))
+        base                            =                                       nil                 ;2*reg+none
+      Else If ( factor = 2 )            ;default
+        base                            =                                       index               ;1*reg+reg
+        factor                          =                                       0
+      Else If (( factor = 3 ))
+        base                            =                                       index
+        factor                          =                                       2
+      Else If (( factor = 4 ) | ( factor = 8 ))
+        base                            =                                       nil
+      Else If (( factor = 5 ))
+        base                            =                                       index
+        factor                          =                                       4
+      Else If (( factor = 9 ))
+        base                            =                                       index
+        factor                          =                                       8
+      Else
+        fail name, 'invalid factor'
+      End If
+    Else If (( elementsof opRegMem.address ) = 2 )                              ;( 32 bit addressing – 2 register )
+      memField                          =                                       4
+      If      (( opRegMem.address scale 1 ) = 1 )
+        base                            =                                       (( opRegMem.address metadata 1 ) scale 0 )
+        index                           =                                       (( opRegMem.address metadata 2 ) scale 0 )
+        factor                          =                                       ( opRegMem.address scale 2 )
+      Else If (( opRegMem.address scale 2 ) = 1 )
+        base                            =                                       (( opRegMem.address metadata 2 ) scale 0 )
+        index                           =                                       (( opRegMem.address metadata 1 ) scale 0 )
+        factor                          =                                       ( opRegMem.address scale 1 )
+      Else
+        fail name, 'cannot two index registers'
+      End If
+      Irp                               item,                                   'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi'
+        Indx                            ( index + 1 )
+        Irp                             temp,                                   'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi'
+          Indx                          ( base + 1 )
+          If      (( length ) & ( factor = 1 ))
+            lister@@putOperand          strSize, ' [ ',                         item, ' + ', temp, ' + ', length disp,  ' ]'
+          Else If ( length )
+            lister@@putOperand          strSize, ' [ ', decimal factor, ' * ',  item, ' + ', temp, ' + ', length disp,  ' ]'
+          Else If (             ( factor = 1 ))
+            lister@@putOperand          strSize, ' [ ',                         item, ' + ', temp,                      ' ]'
+          Else
+            lister@@putOperand          strSize, ' [ ', decimal factor, ' * ',  item, ' + ', temp,                      ' ]'
+          End If
+          Break
+        End Irp
+        Break
+      End Irp
+      If ( random@@randomiseOpcodeSize )
+        coin                            random@@random                          2
+      Else
+        coin                            =                                       true
+      End If
+      If ( random@@randomiseOpcodes )
+        flip                            random@@random                          2
+      Else
+        flip                            =                                       false
+      End If
+      If      (( factor > 1 ) & ( index = x86@@regSP ))
+        fail name, 'cannot encode factord esp'
+      Else If (( factor = 1 ) & (( index = x86@@regSP ) | (( base = x86@@regBP ) & ( length = null ) & ( coin )) | (( base <> x86@@regSP ) & ( flip ))))
+        ;:exchange index and base
+        ;:if factor = 1 and
+        ;:  if index == esp or
+        ;:  if base  == ebp & length == null & coin or
+        ;:  if base  <> esp & flip
+        temp                            =                                       base
+        base                            =                                       index
+        index                           =                                       temp
+      End If
+      If (( base = x86@@regBP ) & ( length = null ))
+        length                          =                                       byte
+      End If
+    Else
+      fail name, 'cannot encode address'
+    End If
+  Else
+    fail name, 'invalid operand: »', opRegMem.type, '«'
+  End If
+  If (( factor ) & ( base = nil ))                                                                  ;factor * index + none
+    modField                            =                                       0x00                ;00 – this usual mean no displacement, but in this case 32 bit displacement
+    base                                =                                       5
+    length                              =                                       dword
+  End If
+  ;( opcode )
+  ;{
+    x86@@putOpcode                      opcode                                  ;could be a list
+  ;}
+  ;( modR/M )
+  ;{
+    db ( modField or ( regField shl 3 ) or memField )                           ;mod : reg : r/m
+  ;}
+  ;( SIB – factor : index : base )
+  ;{
+    If      ( factor = 1 )
+      db ( 0x00 or ( index shl 3 ) or base )
+    Else If ( factor = 2 )
+      db ( 0x40 or ( index shl 3 ) or base )
+    Else If ( factor = 4 )
+      db ( 0x80 or ( index shl 3 ) or base )
+    Else If ( factor = 8 )
+      db ( 0xc0 or ( index shl 3 ) or base )
+    End If
+  ;}
+  ;( displacement )
+  ;{
+    If ( length )
+      emit length:( disp )
+    End If
+  ;}
+End Macro
+Macro x86@@killMySelf
+End Macro
+
+;( handle prefixes )
+;{
+  Macro x86@@addPrefix                  prefix*
+    x86@@lstPrefixes                    Equ                                     prefix
+  End Macro
+  Macro x86@@putOpcode                  opcode&               ;for multi-byte opcodes, where $opcode is not a < list > or for simple one-byte operands
+    Match                               ,                                       opcode
+      fail 'x86@@putOpcode', 'missing opcode'
+    End Match
+    If ( random@@randomisePrefixes )
+      random@@permuteBytes              x86@@lstPrefixes
+    Else
+      Irpv                              item,                                   x86@@lstPrefixes
+        db item
+      End Irpv
+    End If
+    Irpv                                item,                                   x86@@lstPrefixes
+      Restore x86@@lstPrefixes
+    End Irpv
+    db opcode
+  End Macro
+;}
+;( specify instruction subsets )
+;{
+  Macro useFPU?                         machine*
+    Match                               =8087,                                  machine
+      Include 'include/assembly/8087.flib'
+    Else Match                          =80187,                                 machine
+      Include 'include/assembly/80187.flib'
+    Else Match                          =80287,                                 machine
+      Include 'include/assembly/80287.flib'
+    Else Match                          =80387,                                 machine
+      Include 'include/assembly/80387.flib'
+    Else
+      fail 'useFPU', 'unknown machine »', `machine, '«'
+    End Match
+  End Macro
+  Macro useMMX?
+    Include 'include/assembly/MMX.flib'
+  End Macro
+  Macro use16?
+    x86@@defaultOperandSize             =                                       16
+    x86@@defaultAddressSize             =                                       16
+  End Macro
+  Macro use32?
+    If ( x86@@isaVersion >= x86@@i80386 )
+      x86@@defaultOperandSize           =                                       32
+      x86@@defaultAddressSize           =                                       32
+    Else
+      fail 'use32', 'machine must at least i386'
+    End If
+  End Macro
+  Macro use16bitAddressing?
+    x86@@defaultAddressSize             =                                       16
+  End Macro
+  Macro use32bitAddressing?
+    If ( x86@@isaVersion >= x86@@i80386 )
+      x86@@defaultAddressSize           =                                       32
+    Else
+      fail 'use32bitAddressing', 'machine must at least i386'
+    End If
+  End Macro
+  ;( default )
+  ;{
+    x86@@isaVersion                     =                                       null
+    use16
+  ;}
+;}
+;( code-spaces )
+;{
+  ;( elf )
+  ;{
+    Macro elf@@code_8086                ignore&
+      Macro elf@@codeFinaliser
+        x86@@killMySelf
+        displayOnNewLine 'listing:', 10
+        lister@@display
+        end listing
+      End Macro
+      listing
+      Include 'include/assembly/8086.flib'
+    End Macro
+    Macro elf@@code_80186               ignore&
+      Include 'include/assembly/80186.flib'
+      Macro elf@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+    Macro elf@@code_80286               ignore&
+      Include 'include/assembly/80286.flib'
+      Macro elf@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+    Macro elf@@code_80386               ignore&
+      Include 'include/assembly/80386.flib'
+      Macro elf@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+    Macro elf@@code_80486               ignore&
+      Include 'include/assembly/80486.flib'
+      Macro elf@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+    Macro elf@@code_Pentium             ignore&
+      Include 'include/assembly/pentium.flib'
+      Macro elf@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+    elf@@addCodeSpace                   8086,                                   elf@@code_8086
+    elf@@addCodeSpace                   80186,                                  elf@@code_80186
+    elf@@addCodeSpace                   80286,                                  elf@@code_80286
+    elf@@addCodeSpace                   80386,                                  elf@@code_80386
+    elf@@addCodeSpace                   80486,                                  elf@@code_80486
+    elf@@addCodeSpace                   Pentium,                                elf@@code_Pentium
+  ;}
+  ;( uf4 )
+  ;{
+    Macro uf4@@code_8086                ignore&
+      Include 'include/assembly/8086.flib'
+      Macro uf4@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+    Macro uf4@@code_80186               ignore&
+      Include 'include/assembly/80186.flib'
+      Macro uf4@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+    Macro uf4@@code_80286               ignore&
+      Include 'include/assembly/80286.flib'
+      Macro uf4@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+    Macro uf4@@code_80386               ignore&
+      Include 'include/assembly/80386.flib'
+      Macro uf4@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+    Macro uf4@@code_80486               ignore&
+      Include 'include/assembly/80486.flib'
+      Macro uf4@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+    Macro uf4@@code_Pentium             ignore&
+      Include 'include/assembly/pentiu,.flib'
+      Macro uf4@@codeFinaliser
+        x86@@killMySelf
+      End Macro
+    End Macro
+  ;}
+;}

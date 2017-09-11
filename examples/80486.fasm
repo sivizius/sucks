@@ -1,0 +1,30 @@
+Include 'include/main.flib'
+Include 'include/display.flib'
+Include 'include/assembly/x86.flib'
+listing
+  elf@@code_80486
+    ;random@@randomiseOpcodes = true
+    ;random@@randomiseOpcodeSize = true
+    testPositive                          =                                     1
+    ;( positive test, this should work )
+    ;{
+      Repeat ( testPositive )
+        bswap                             eax
+        xadd                              ecx,                                  edx
+        xadd                              dword [ esi ],                        edx
+        xadd                              cx,                                   dx
+        xadd                              word  [ esi ],                        dx
+        xadd                              cl,                                   dl
+        xadd                              byte  [ esi ],                        dl
+        invlpg                            [ esi + 2 * eax ]
+        cpuid
+      End Repeat
+    ;}
+    ;( negative test, this should not work )
+    ;{
+      Repeat ( 1 - testPositive )
+      End Repeat
+    ;}
+  elf@@codeFinaliser
+  lister@@display
+end listing

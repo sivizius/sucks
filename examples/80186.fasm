@@ -1,0 +1,31 @@
+Include 'include/main.flib'
+Include 'include/display.flib'
+Include 'include/assembly/x86.flib'
+listing
+  elf@@code_80186
+    ;random@@randomiseOpcodes = true
+    ;random@@randomiseOpcodeSize = true
+    testPositive                          =                                     1
+    ;( positive test, this should work )
+    ;{
+      Repeat ( testPositive )
+        imul                              ax,                                   cx,                                     0x23                ;ax = cx * sign-extended immediate value
+        imul                              ax,                                   cx,                                     0x1337              ;ax = cx * immediate value
+        insb
+        rol                               ax,                                   cl
+        rol                               ax,                                   1
+        rol                               ax,                                   20
+        bound                             bx,                                   dword [ si ]
+        enter                             0x1234
+        leave
+      End Repeat
+    ;}
+    ;( negative test, this should not work )
+    ;{
+      Repeat ( 1 - testPositive )
+        pop                             cs                                                                                                  ;only 8086
+      End Repeat
+    ;}
+  elf@@codeFinaliser
+  lister@@display
+end listing

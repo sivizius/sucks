@@ -1,0 +1,43 @@
+Include 'include/main.flib'
+Include 'include/display.flib'
+Include 'include/assembly/x86.flib'
+listing
+  elf@@code_Pentium
+    ;random@@randomiseOpcodes = true
+    ;random@@randomiseOpcodeSize = true
+    testPositive                        =                                       1
+    ;( positive test, this should work )
+    ;{
+      Repeat ( testPositive )
+        cmpxchg8b                         qword [ esi ]
+        rdmsr
+        ;( pentium mmx )
+        ;{
+          useMMX
+          rdpmc
+          emms
+          pcmpgtb                       mm0,                                    mm7
+          pcmpgtb                       mm1,                                    qword [ eax ]
+          pcmpgtb                       mm2,                                    [ eax ]
+          psllw                         mm3,                                    qword [ esi ]
+          psllw                         mm3,                                    mm6
+          psllw                         mm3,                                    0x23
+          movd                          mm0,                                    dword [ esi ]
+          movd                          mm1,                                    ecx
+          movd                          ebx,                                    mm2
+          movd                          dword [ eax ],                          mm3
+          movq                          mm0,                                    qword [ esi ]
+          movq                          mm1,                                    mm6
+          movq                          mm1,                                    mm2
+          movq                          qword [ eax ],                          mm3
+        ;}
+      End Repeat
+    ;}
+    ;( negative test, this should not work )
+    ;{
+      Repeat ( 1 - testPositive )
+      End Repeat
+    ;}
+  elf@@codeFinaliser
+  lister@@display
+end listing

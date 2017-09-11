@@ -1,0 +1,148 @@
+Match any, random@@seed
+  random@@seed                          =                                       ( any and 0xffffffffffffffff )
+Else
+  random@@seed                          =                                       %t
+End Match
+Struc random@@hashChar                  seed*,                                  char*
+  Local temp, hash
+  hash                                  =                                       ( seed xor char )
+  Repeat                                7
+    Load                                temp byte                               From aes@@encSBox:( hash and 0xff )
+    hash                                =                                       ((  hash             and 0xffffffffffffff00 ) or temp )
+    temp                                =                                       ((  hash             and 0xffff800000000000 ) shr ( 64 - 17 ))
+    hash                                =                                       ((( hash             and 0x00007fffffffffff ) shl  17 ) or temp )
+  End Repeat
+  .                                     =                                       hash
+End Struc
+Struc random@@hashString                seed*,                                  string*
+  Local hash
+  hash                                  =                                       seed
+  Virtual                               At null
+    db string
+    Repeat                              ( $ ),                                  offs:( null )
+      Load                              char byte                               From offs
+      hash random@@hashChar             hash,                                   char
+    End Repeat
+  End Virtual
+  .                                     =                                       hash
+End Struc
+Struc random@@random                    modulus:( null )
+  random@@seed                          random@@hashChar                        random@@seed,                           0x2342
+  random@@seed                          random@@hashChar                        random@@seed,                           0x1337
+  random@@seed                          random@@hashChar                        random@@seed,                           0x19961003
+  random@@seed                          random@@hashChar                        random@@seed,                           0xc0ffee
+  If ( modulus )
+    .                                   =                                       ( random@@seed mod modulus )
+  Else
+    .                                   =                                       random@@seed
+  End If
+End Struc
+Struc random@@prime                     arg*
+    Irp                                 prime, \
+                                           2,    3,    5,    7,   11,   13,   17,   19,   23,   29,   31,   37,   41,   43,   47,   53,   59,   61,   67,   71, \
+                                          73,   79,   83,   89,   97,  101,  103,  107,  109,  113,  127,  131,  137,  139,  149,  151,  157,  163,  167,  173, \
+                                         179,  181,  191,  193,  197,  199,  211,  223,  227,  229,  233,  239,  241,  251,  257,  263,  269,  271,  277,  281, \
+                                         283,  293,  307,  311,  313,  317,  331,  337,  347,  349,  353,  359,  367,  373,  379,  383,  389,  397,  401,  409, \
+                                         419,  421,  431,  433,  439,  443,  449,  457,  461,  463,  467,  479,  487,  491,  499,  503,  509,  521,  523,  541, \
+                                         547,  557,  563,  569,  571,  577,  587,  593,  599,  601,  607,  613,  617,  619,  631,  641,  643,  647,  653,  659, \
+                                         661,  673,  677,  683,  691,  701,  709,  719,  727,  733,  739,  743,  751,  757,  761,  769,  773,  787,  797,  809, \
+                                         811,  821,  823,  827,  829,  839,  853,  857,  859,  863,  877,  881,  883,  887,  907,  911,  919,  929,  937,  941, \
+                                         947,  953,  967,  971,  977,  983,  991,  997, 1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049, 1051, 1061, 1063, 1069, \
+                                        1087, 1091, 1093, 1097, 1103, 1109, 1117, 1123, 1129, 1151, 1153, 1163, 1171, 1181, 1187, 1193, 1201, 1213, 1217, 1223, \
+                                        1223, 1229, 1231, 1237, 1249, 1259, 1277, 1279, 1283, 1289, 1291, 1297, 1301, 1303, 1307, 1319, 1321, 1327, 1361, 1367, \
+                                        1373, 1381, 1399, 1409, 1423, 1427, 1429, 1433, 1439, 1447, 1451, 1453, 1459, 1471, 1481, 1483, 1487, 1489, 1493, 1499, \
+                                        1511, 1523, 1531, 1543, 1549, 1553, 1559, 1567, 1571, 1579, 1583, 1597, 1601, 1607, 1609, 1613, 1619, 1621, 1627, 1637, \
+                                        1657, 1663, 1667, 1669, 1693, 1697, 1699, 1709, 1721, 1723, 1733, 1741, 1747, 1753, 1759, 1777, 1783, 1787, 1789, 1801, \
+                                        1811, 1823, 1831, 1847, 1861, 1867, 1871, 1873, 1877, 1879, 1889, 1901, 1907, 1913, 1931, 1933, 1949, 1951, 1973, 1979, \
+                                        1987, 1993, 1997, 1999, 2003, 2011, 2017, 2027, 2029, 2039, 2053, 2063, 2069, 2081, 2083, 2087, 2089, 2099, 2111, 2113, \
+                                        2129, 2131, 2137, 2141, 2143, 2153, 2161, 2179, 2203, 2207, 2213, 2221, 2237, 2239, 2243, 2251, 2267, 2269, 2273, 2281, \
+                                        2287, 2293, 2297, 2309, 2311, 2333, 2339, 2341, 2347, 2351, 2357, 2371, 2377, 2381, 2383, 2389, 2393, 2399, 2411, 2417, \
+                                        2423, 2437, 2441, 2447, 2459, 2467, 2473, 2477, 2503, 2521, 2531, 2539, 2543, 2549, 2551, 2557, 2579, 2591, 2593, 2609, \
+                                        2617, 2621, 2633, 2647, 2657, 2659, 2663, 2671, 2677, 2683, 2687, 2689, 2693, 2699, 2707, 2711, 2713, 2719, 2729, 2731
+      If (( arg > null ) & ( arg <= %% ))
+        Indx arg
+        .                               =                                       %
+        Break
+      Else
+        fail 'random@@prime', 'argument out of bounds'
+      End If
+    End Irp
+End Struc
+Struc random@@lfsr                      state*,                                 size*
+  If ( state )
+    .                                   =                                       (( state shr 1 ) and (( 1 shl ( size )) - 1 )) + ((( state and 1 ) xor (( state shr 1 ) and 1 )) shl ( size - 1 ))
+  Else
+    fail 'random@@lfsr', 'state is null'
+  End If
+End Struc
+Struc random@@glfsr                     state*,                                 size*
+  If ( state )
+    Irp                                 polynom, \
+                                        0x00000000, 0x00000003, 0x00000006, 0x00000009, 0x00000014, 0x00000033, 0x00000055, 0x000000b2, \
+                                        0x0000013e, 0x000003a6, 0x000004fb, 0x00000965, 0x00001166, 0x00002106, 0x000040ae, 0x00008634, \
+                                        0x0001019a, 0x000201f0, 0x00040150, 0x000802f9, 0x00100169, 0x00200287, 0x0040041e, 0x00800853, \
+                                        0x01000444, 0x020006d5, 0x04000112, 0x0800025a, 0x10000218, 0x20000b7d, 0x40000007, 0x800003e9
+      If (( size > 2 ) & ( size <= %% ))
+        Indx size
+        .                               =                                       ((( state shr 1 ) and (( 1 shl ( size )) - 1 )) xor (( state and 1 ) * polynom ))
+      Else
+        fail 'random@@glfsr', 'invalid size'
+      End If
+    End Irp
+  Else
+    fail 'random@@g,lfsr', 'state is null'
+  End If
+End Struc
+
+Macro random@@permuteBytes              list*
+  Local modulus, size, lfsrseed, count
+  Local randomIncrement
+  Irpv                                  item,                                   list
+    modulus                             =                                       %%
+    size                                =                                       0
+    While ( modulus )
+      modulus                           =                                       ( modulus shr 1 )
+      size                              =                                       ( size + 1 )
+    End While
+    randomIncrement                     random@@random
+    lfsrseed                            =                                       null
+    While ( lfsrseed = null )
+      lfsrseed                          random@@random                          (( 1 shl size ) - 1 )
+    End While
+    Irp                                 temp, \
+                                        0x00000000, 0x00000003, 0x00000006, 0x00000009, 0x00000014, 0x00000033, 0x00000055, 0x000000b2, \
+                                        0x0000013e, 0x000003a6, 0x000004fb, 0x00000965, 0x00001166, 0x00002106, 0x000040ae, 0x00008634, \
+                                        0x0001019a, 0x000201f0, 0x00040150, 0x000802f9, 0x00100169, 0x00200287, 0x0040041e, 0x00800853, \
+                                        0x01000444, 0x020006d5, 0x04000112, 0x0800025a, 0x10000218, 0x20000b7d, 0x40000007, 0x800003e9
+      Indx size
+      polynom                           =                                       temp
+    End Irp
+    modulus                             =                                       %%
+    Repeat (( 1 shl size ) - 1 )
+      lfsrseed                          =                                       (( lfsrseed shr 1 ) xor (( lfsrseed and 1 ) * polynom ))
+      If ( lfsrseed <= modulus )
+        count                           =                                       ((( lfsrseed * 2719 ) + randomIncrement ) mod modulus )
+        Indx ( count + 1 )
+        ;displayValue 'count: ', count
+        displayValue 'char:  ', item
+      End If
+    End Repeat
+    Break
+  End Irpv
+End Macro
+;( polymorphic code )
+;{
+  ;:flags may be ignored.
+  random@@randomiseOpcodes              =                                       false               ;e.g. add r1 <- r2 = add r2 -> r1 (x86, different direction bit), xor r1, r1 = sub r1, r1 = ….
+  random@@randomisePrefixes             =                                       false               ;randomise order of prefixes
+  random@@randomiseOpcodeSize           =                                       false               ;longer opcodes, looks like compiled by hand, unnecessary prefixes, higher length of immediat values.
+  random@@randomiseStructures           =                                       false               ;randomise order of fields in structures, except api.
+  random@@randomiseFunctions            =                                       false               ;randomise order of functions, this may significantly increase the time of compilation.
+  random@@randomiseRegister             =                                       false               ;randomise use of register.
+  random@@randomiseExecution            =                                       false               ;randomise order of execution of independent instructions.
+  random@@randomisePadding              =                                       false               ;random bytes for padding of data and random opcodes for padding of code.
+  random@@codeObfuscation               =                                       false               ;extra code, code looks like written by an idiot. increases execution time.
+  random@@extraData                     =                                       false               ;extra, unused data. always true, if random@@codeObfuscation is true.
+  random@@encryption                    =                                       null                ;encrypt everything and decrypt at runtime.
+  random@@probabilisticExecution        =                                       false               ;presumably it will work, but you cannot be sure. e.g. if (random()) { /* usually taken */ }
+;}

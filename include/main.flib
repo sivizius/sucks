@@ -1,7 +1,9 @@
+Element invalid
 null                                    =                                       ( 0 )
 false                                   Equ                                     ( 0 )
 true                                    Equ                                     ( 1 )
 nil                                     =                                       (( 1 shl 63 ) - 1 + ( 1 shl 63 ))
+decimal                                 =                                       ( -1 )
 NANOSECONDS                             =                                       ( 1 )
 MICROSECONDS                            =                                       ( 1000 * NANOSECONDS )
 MILLISECONDS                            =                                       ( 1000 * MICROSECONDS )
@@ -149,13 +151,45 @@ Macro hQ                                value&
 End Macro
 
 Macro fail                              function*,          message&
+  Local theMessage
   Postpone
     display 10, 27, '[36m'
   End Postpone
   Irpv                                  item,                                   __file__
     display '  ->', `item, 10
   End Irpv
-  Err 10, '  [', function, '] ',  message
+  Virtual                               At null
+    Irp                                 theString,                              message
+      Match                             size value,                             theString
+        If      ( size )
+          db '0x'
+          If      ( size = -1 )
+           Repeat 1, num:( value )
+              db `num
+            End Repeat
+          Else If ( size = byte )
+            hb value
+          Else If ( size = word )
+            hw value
+          Else If ( size = dword )
+            hd value
+          Else
+            hq value
+          End If
+        Else
+          db value
+        End If
+      Else
+        If ( theString = 10 )
+          db '  '
+        End If
+        db theString
+      End Match
+    End Irp
+    Load                                theMessage ( $ )                        From null
+  End Virtual
+  Err 10, '  [', function, '] ',  theMessage
+  ;Err 10, '  [', function, '] ',  message
   Break
   Break
   Break
@@ -181,3 +215,5 @@ Macro comment
     End If
   End Macro
 End Macro
+
+Include 'include/random.flib'

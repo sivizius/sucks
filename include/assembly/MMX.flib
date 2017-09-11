@@ -1,0 +1,146 @@
+Purge rdpmc?
+Macro rdpmc?
+  lister@@putInstruction                'rdpmc'
+  x86@@putOpcode                        0x0f, 0x33
+End Macro
+Purge pcmpgtb?, pcmpgtw?, pcmpgtd?, packuswb?, punpckhbw?, punpckhwd?, punpckhdq?, pcmpeqb?, pcmpeqw?, pcmpeqd?, psrlq?, paddq?
+Purge pmullw?, psubusb?, psubusw?, pand?, paddusb?, paddusw?, pandn?, pmulhw?, psubsb?, psubsw?, por?, paddsb?
+Purge paddsw?, pxor?, pmaddwd?, psubb?, psubw?, psubd?, paddb?, paddw?, paddd?
+Purge psllw?, pslld?, psllq?, psraw?, psrad?, psrlw?, psrld?, psrlq?
+Purge movd?, movq?, emms?
+Macro emms?
+  lister@@putInstruction                'emms'
+  x86@@putOpcode                        0x0f, 0x77
+End Macro
+Irp                                     < name,     base >,                                                     \
+                                        pcmpgtb,    0x64, pcmpgtw,    0x65, pcmpgtd,    0x66, packuswb,   0x67, \
+                                        punpckhbw,  0x68, punpckhwd,  0x69, punpckhdq,  0x6a, pcmpeqb,    0x74, \
+                                        pcmpeqw,    0x75, pcmpeqd,    0x76, psrlq,      0xd3, paddq,      0xd4, \
+                                        pmullw,     0xd5, psubusb,    0xd8, psubusw,    0xd9, pand,       0xdb, \
+                                        paddusb,    0xdc, paddusw,    0xdd, pandn,      0xdf, pmulhw,     0xe5, \
+                                        psubsb,     0xe8, psubsw,     0xe9, por,        0xeb, paddsb,     0xec, \
+                                        paddsw,     0xed, pxor,       0xef, pmaddwd,    0xf5, psubb,      0xf8, \
+                                        psubw,      0xf9, psubd,      0xfa, paddb,      0xfc, paddw,      0xfd, \
+                                        paddd,      0xfe, packssdw,   0x6b, packsswb,   0x63
+  Macro name?                           dst*,                                   src*
+    Local srcOperand, dstOperand, size
+    lister@@putInstruction              `name
+    srcOperand                          x86@@parseOperand                       src
+    dstOperand                          x86@@parseOperand                       dst
+    size                                =                                       ( srcOperand.size or dstOperand.size )
+    If (( size = null ) | ( size = qword ))
+      If (( dstOperand.type = 'mm' ) & (( srcOperand.type = 'mm' ) | ( srcOperand.type = 'memory' )))
+        lister@@putOperand              dstOperand.symbol
+        srcOperand.size                 =                                       qword
+        x86@@emitInstruction            `name,    < 0x0f, base >,     null,               dstOperand.register,                    srcOperand,         x86@@regTypeMM
+      Else
+        fail `name, 'invalid operands'
+      End If
+    Else
+      fail `name, 'invalid operand sizes'
+    End If
+  End Macro
+End Irp
+Irp                                     < name,     base >,                                                     \
+                                        punpcklbw,  0x60, punpcklwd,  0x61, punpckldq,  0x62
+  Macro name?                           dst*,                                   src*
+    Local srcOperand, dstOperand, size
+    lister@@putInstruction              `name
+    srcOperand                          x86@@parseOperand                       src
+    dstOperand                          x86@@parseOperand                       dst
+    size                                =                                       ( srcOperand.size or dstOperand.size )
+    If (( size = null ) | ( size = dword ))
+      If (( dstOperand.type = 'mm' ) & (( srcOperand.type = 'mm' ) | ( srcOperand.type = 'memory' )))
+        lister@@putOperand              dstOperand.symbol
+        srcOperand.size                 =                                       dword
+        x86@@emitInstruction            `name,    < 0x0f, base >,     null,               dstOperand.register,                    srcOperand,         x86@@regTypeMM
+      Else
+        fail `name, 'invalid operands'
+      End If
+    Else
+      fail `name, 'invalid operand sizes'
+    End If
+  End Macro
+End Irp
+Irp                                     < name, base, reg >,  \
+                                        psllw,  1,    6,      \
+                                        pslld,  2,    6,      \
+                                        psllq,  3,    6,      \
+                                        psraw,  1,    4,      \
+                                        psrad,  2,    4,      \
+                                        psrlw,  1,    2,      \
+                                        psrld,  2,    2,      \
+                                        psrlq,  3,    2
+  Macro name?                           dst*,                                   src*
+    Local srcOperand, dstOperand, size, opcode
+    lister@@putInstruction              `name
+    srcOperand                          x86@@parseOperand                       src
+    dstOperand                          x86@@parseOperand                       dst
+    size                                =                                       ( srcOperand.size or dstOperand.size )
+    If (( size = null ) | ( size = qword ))
+      lister@@putOperand                dstOperand.symbol
+      srcOperand.size                   =                                       qword
+      If      (( dstOperand.type = 'mm' ) & (( srcOperand.type = 'mm' ) | ( srcOperand.type = 'memory' )))
+        opcode                          =                                       ( 0xf0 or base )
+        x86@@emitInstruction            `name,    < 0x0f, opcode >,   null,               dstOperand.register,                    srcOperand,         x86@@regTypeMM
+      Else If (( dstOperand.type = 'mm' ) & ( srcOperand.type = 'immediate value' ) & (( srcOperand.value and 0xff ) = srcOperand.value ))
+        opcode                          =                                       ( 0x70 or base )
+        x86@@emitInstruction            `name,    < 0x0f, opcode >,   null,               reg,                                    dstOperand,         x86@@regTypeMM
+        db srcOperand.value
+      Else
+        fail `name, 'invalid operands'
+      End If
+    Else
+      fail `name, 'invalid operand sizes'
+    End If
+  End Macro
+End Irp
+Macro movd?                             dst*,                                   src*
+  Local srcOperand, dstOperand, size, opcode
+  lister@@putInstruction                'movd'
+  srcOperand                            x86@@parseOperand                       src
+  dstOperand                            x86@@parseOperand                       dst
+  size                                  =                                       ( srcOperand.size or dstOperand.size )
+  If (( size = null ) | ( size = dword ))
+    If      (( dstOperand.type = 'mm' ) & (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' )))
+      lister@@putOperand                dstOperand.symbol
+      x86@@emitInstruction              'movd',   < 0x0f, 0x6e >,     null,               dstOperand.register,                    srcOperand
+    Else If (( srcOperand.type = 'mm' ) & (( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' )))
+      x86@@emitInstruction              'movd',   < 0x0f, 0x7e >,     null,               srcOperand.register,                    dstOperand
+      lister@@putOperand                srcOperand.symbol
+    Else
+      fail 'movd', 'invalid operands'
+    End If
+  Else
+    fail 'movd', 'invalid operand sizes'
+  End If
+End Macro
+Macro movq?                             dst*,                                   src*
+  Local srcOperand, dstOperand, size, opcode
+  lister@@putInstruction                'movq'
+  srcOperand                            x86@@parseOperand                       src
+  dstOperand                            x86@@parseOperand                       dst
+  size                                  =                                       ( srcOperand.size or dstOperand.size )
+  If (( size = null ) | ( size = qword ))
+    If      (( dstOperand.type = 'mm' ) & (( srcOperand.type = 'mm' ) | ( srcOperand.type = 'memory' )))
+      lister@@putOperand                dstOperand.symbol
+      x86@@emitInstruction              'movq',   < 0x0f, 0x6f >,     null,               dstOperand.register,                    srcOperand,         x86@@regTypeMM
+    Else If (( srcOperand.type = 'mm' ) & (( dstOperand.type = 'mm' ) | ( dstOperand.type = 'memory' )))
+      x86@@emitInstruction              'movq',   < 0x0f, 0x7f >,     null,               srcOperand.register,                    dstOperand,         x86@@regTypeMM
+      lister@@putOperand                srcOperand.symbol
+    Else
+      fail 'movq', 'invalid operands'
+    End If
+  Else
+    fail 'movq', 'invalid operand sizes'
+  End If
+End Macro
+Macro x86@@killMySelf
+  x86@@killMySelf
+  Purge x86@@killMySelf
+  Purge pcmpgtb?, pcmpgtw?, pcmpgtd?, packuswb?, punpckhbw?, punpckhwd?, punpckhdq?, pcmpeqb?, pcmpeqw?, pcmpeqd?, psrlq?, paddq?
+  Purge pmullw?, psubusb?, psubusw?, pand?, paddusb?, paddusw?, pandn?, pmulhw?, psubsb?, psubsw?, por?, paddsb?
+  Purge paddsw?, pxor?, pmaddwd?, psubb?, psubw?, psubd?, paddb?, paddw?, paddd?
+  Purge psllw?, pslld?, psllq?, psraw?, psrad?, psrlw?, psrld?, psrlq?
+  Purge movd?, movq?, emms?, rdpmc?
+End Macro

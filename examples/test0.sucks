@@ -1,42 +1,14 @@
-format tinafs
-  file 'bin.yaos'
-    format uf4
-      code yasic
-        qword print(qword message)
-        end qword
-        print(123)
-        print(42)
-        qword a = 0
-        a = a + 0x1337
-      end code
-      code compile
-        parseYapterTable                yapters@@theFirst,                      .yapters@@numYapters
-      end code
-      theTable = yapters@@theFirst
-      numTable = .yapters@@numYapters
-    end format
-  end file
-  file 'bin.chaos'
-    format elf, executable, amd64
-      entry 0x1337
-      segment readable, executable
-        db 123
-        db 123
-        db 123
-        rb 5
-      end segment
-      segment readable, writeable
-        db 123
-        rb 7
-      end segment
-      code compile
-        parseYapterTable                theTable,                               numTable
-      end code
-      code compile
-        parseYapterTable                theTable,                               numTable
-      end code
-      segment gnustack, readable
-      segment interpreter 'helloworld'
-    end format
-  end file
+format uf4
+  code yasic
+    qword print(qword message)
+      return message
+    end qword
+    print(123)
+    print(42)
+    qword a = 0
+    a = a + 0x1337
+  end code
+  code compile                      compile@@i80386
+    parseYapterTable                yapters@@theFirst,                      .yapters@@numYapters
+  end code
 end format

@@ -1,0 +1,12 @@
+Include 'include/assembly/pentium.flib'
+x86@@isaVersion                         =                                       x86@@iPentium
+use32
+Macro rdpmc?
+  lister@@putInstruction                'rdpmc'
+  x86@@putOpcode                        0x0f, 0x33
+End Macro
+Macro x86@@killMySelf
+  x86@@killMySelf
+  Purge x86@@killMySelf
+  Purge rdpmc?
+End Macro
