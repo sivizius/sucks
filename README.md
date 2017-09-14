@@ -96,9 +96,9 @@ formats
 This macroinstruction subset provides some macros to define the structure of the output.
 Some formats may allow other formats inside, e.g. a container-format, that contains multiple files of different formats.
 I already implemented or planned to implement the following formats:
--[x] elf – executable and linking file format
--[x] [uf4 – universal fancy and fluffy file format](#universal fancy and fluffy file format)
--[ ] pe – portable executable
+- [x] elf – executable and linking file format
+- [x] [uf4 – universal fancy and fluffy file format](#universal-fancy-and-fluffy-file-format)
+- [ ] pe – portable executable
 
 fruitbot byte code
 ------------------
