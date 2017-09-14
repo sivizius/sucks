@@ -1,6 +1,6 @@
 sucks
 =====
-Sucks is a macroinstruction set for flatassembler G [fasmg](https://flatassembler.net/download.php) with the main-purpose of creating executables from a high-level language.
+Sucks is a macroinstruction set for [flatassembler G (fasmg)](https://flatassembler.net/) with the main-purpose of creating executables from a high-level language.
 As such you can call this a extension for the compiler fasmg.
 There is actually not the purpose but many purposes and ways you can use this repository and I try to show a lot of aspects.
 
