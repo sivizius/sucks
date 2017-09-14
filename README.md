@@ -144,17 +144,18 @@ uf4 (spelled: »ufo«) is designed as a multi-purpose file format with a very si
 
 | meaning       | description                                                             |
 | ---           | ---                                                                     |
-| Magic String  | ascii[32]:  »#!~/sba/bin/suckmore'«, \n                                 |
-|               |             »#«, 0x19, 0x96, 0x10, 0x03, 0x23, 0x42, 0x13, 0x37, \n, \0 |
+| Magic String  | ascii[32]:                                                              |
+|               | → »#!~/sba/bin/suckmore'«, \n                                           |
+|               | → »#«, 0x19, 0x96, 0x10, 0x03, 0x23, 0x42, 0x13, 0x37, \n, \0           |
 | yapters[]     | yapter-table:                                                           |
-|               |   word  type    defines how this entry is processed.                    |
-|               |   word  dataW   depending on type.                                      |
-|               |   dword dataD   depending on type.                                      |
-|               |   qword dataQ0  depending on type.                                      |
-|               |   qword dataQ1  depending on type, usually the size in file.            |
-|               |   qword dataQ2  depending on type, usually the offset from content.     |
+|               | → word  type    defines how this entry is processed.                    |
+|               | → word  dataW   depending on type.                                      |
+|               | → dword dataD   depending on type.                                      |
+|               | → qword dataQ0  depending on type.                                      |
+|               | → qword dataQ1  depending on type, usually the size in file.            |
+|               | → qword dataQ2  depending on type, usually the offset from content.     |
 | ycontent      | ycontent:                                                               |
-|               |   bytes[]                                                               |
+|               | → bytes[]                                                               |
 
 The file format is actually a container format for so-called yapters, named after chapters of a book.
 Every of these yapters has an 32-byte-entry in the yapter-table.
@@ -168,7 +169,7 @@ The Magic String can differ, but it must be exactly 32 bytes long, it must begin
 
 I hope, I will provide a list soon.
 
-The following pseudo-code describes how to parse a uf4 file:
+The following pseudo-code describes how to parse an uf4 file:
 ```
 function parseFile( fileName )
   file theFile = openFile( fileName )
