@@ -1,6 +1,6 @@
 sucks
 =====
-Sucks is a macroinstruction set for flatassembler G (fasmg) with the main-purpose of creating executables from a high-level language.
+Sucks is a macroinstruction set for flatassembler G [fasmg](https://flatassembler.net/download.php) with the main-purpose of creating executables from a high-level language.
 As such you can call this a extension for the compiler fasmg.
 There is actually not the purpose but many purposes and ways you can use this repository and I try to show a lot of aspects.
 
@@ -20,7 +20,7 @@ also the text editor of your choice to view and edit the files locally.
 | *include/*          | the macroinstructions. actually the core of this repository.                                    |
 | *include/assembly/* | [assembly-like instructions](#assembly), for example the x86-instructionset.                    |
 | *include/format/*   | different [output-formats](#formats).                                                           |
-| *include/yasic/*    | [yasic](#yet another symbolic instruction code), a high-level programming language.             |
+| *include/yasic/*    | [yasic](#yet-another-symbolic-instruction-code), a high-level programming language.             |
 
 Do not include the sub-directories of *include/* directly!
 Include *include/assembly.flib*,  *include/format.flib* and *include/yasic.flib* instead.
@@ -82,8 +82,9 @@ This macroinstruction subset provides some macros for assembly languages of diff
 * Atmel AVR
   * comming soon
 * Zilog Z80
+  * comming soon
 * byte code
-    - [x] [fbc0 – fruitbot byte code version 0](#fruitbot byte code)
+    - [x] [fbc0 – fruitbot byte code version 0](#fruitbot-byte-code)
     - [ ] jvm – java virtual machine
     - [ ] web assembly
     - [ ] CIL – common intermediate language
