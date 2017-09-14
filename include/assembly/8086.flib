@@ -22,7 +22,7 @@ Irp                                     < name, base >, \
         If      (( size = byte  ))
           x86@@putOpcode                ( base or 4 or 0 )
           If (( srcOperand.value >= -0x80 ) & ( srcOperand.value <= 0xff ))
-            db srcOperand.value
+            assembly@@putByte           srcOperand.value
             lister@@putOperand          'al'
             lister@@putOperand          byte ( srcOperand.value )
           Else
@@ -34,7 +34,7 @@ Irp                                     < name, base >, \
           End If
           x86@@putOpcode                ( base or 4 or 1 )
           If (( srcOperand.value >= -0x8000 ) & ( srcOperand.value <= 0xffff ))
-            dw srcOperand.value
+            assembly@@putWord           srcOperand.value
             lister@@putOperand          'ax'
             lister@@putOperand          word ( srcOperand.value )
           Else
@@ -46,7 +46,7 @@ Irp                                     < name, base >, \
           End If
           x86@@putOpcode                ( base or 4 or 1 )
           If (( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ))
-            dd srcOperand.value
+            assembly@@putDWord          srcOperand.value
             lister@@putOperand          'eax'
             lister@@putOperand          dword ( srcOperand.value )
           Else
@@ -99,15 +99,7 @@ Irp                                     < name, base >, \
         Else
           fail `name, 'this should never happen'
         End If
-        If      ( length = byte  )
-          db srcOperand.value
-        Else If ( length = word  )
-          dw srcOperand.value
-        Else If ( length = dword )
-          dd srcOperand.value
-        Else
-          fail `name, 'this should never happen'
-        End If
+        assembly@@putData               length,                                 srcOperand.value
       Else If (( dstOperand.type = 'register' ) & ( srcOperand.type = 'register' | srcOperand.type = 'memory' ))
         lister@@putOperand              dstOperand.symbol
         If (( srcOperand.type = 'register' ) & ( random@@randomiseOpcodes ))
@@ -233,7 +225,7 @@ Macro imul?                             dst*,                                   
                 End If
                 x86@@emitInstruction    'imul',   opcode,             dstOperand.size,    dstOperand.register,          srcOperand
                 lister@@putOperand      size   theOperand.value
-                emit                    size:( theOperand.value )
+                assembly@@putData       size,                                   theOperand.value
               Else
                 fail 'imul', 'source operand must be either a register or memory operand'
               End If
@@ -295,7 +287,8 @@ Irp                                     < name, opcode >,  \
   Macro name?                           base:( 10 )
     lister@@putInstruction              `name
     lister@@putOperand                  byte ( base )
-    x86@@putOpcode                      opcode, base
+    x86@@putOpcode                      opcode
+    assembly@@putByte                   base
   End Macro
   ;aam and aad are documented without arguments and with an implied value of 10.
 End Irp
@@ -310,7 +303,8 @@ Irp                                     < name, opcode >,           \
     If ( theOperand.type = 'immediate value' )
       offset                            =                                       ( theOperand.value - $ )
       If      (( offset >= -0x80 + 2 ) & ( offset <= 0x7f + 2 ))
-        x86@@putOpcode                  opcode,                                 ( offset - 2 )
+        x86@@putOpcode                  opcode
+        assembly@@putByte               ( offset - 2 )
         lister@@putOperand              qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
       Else
         fail `name, 'displacement out of bonds'
@@ -330,7 +324,8 @@ Macro jcxz?                             operand*
     End If
     offset                              =                                       ( theOperand.value - $ )
     If      (( offset >= -0x80 + 2 ) & ( offset <= 0x7f + 2 ))
-      x86@@putOpcode                    opcode,                                 ( offset - 2 )
+      x86@@putOpcode                    opcode
+      assembly@@putByte                 ( offset - 2 )
       lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
     Else
       fail 'jcxz', 'displacement out of bonds'
@@ -369,15 +364,15 @@ Irp                                     < name, opcode >,           \
       End If
       If      (( offset >=       -0x80 + 2 ) & ( offset <=       0x7f + 2 ) & ( coin ))
         x86@@putOpcode                  ( 0x70 or opcode )
-        db ( offset - 2 )
+        assembly@@putByte               ( offset - 2 )
         lister@@putOperand              qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
       Else If (( offset >=     -0x8000 + 4 ) & ( offset <=     0x7fff + 4 ) & ( x86@@defaultAddressSize = 16 ) & ( x86@@isaVersion >= x86@@i80386 ))
         x86@@putOpcode                  0x0f, ( 0x80 or opcode )
-        dw ( offset - 4 )
+        assembly@@putWord               ( offset - 4 )
         lister@@putOperand              qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
       Else If (( offset >= -0x80000000 + 6 ) & ( offset <= 0x7fffffff + 6 ) & ( x86@@defaultAddressSize = 32 ) & ( x86@@isaVersion >= x86@@i80386 ))
         x86@@putOpcode                  0x0f, ( 0x80 or opcode )
-        dd ( offset - 6 )
+        assembly@@putDWord              ( offset - 6 )
         lister@@putOperand              qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
       Else
         fail `name, 'displacement out of bonds'
@@ -435,7 +430,7 @@ Irp                                     < name, base >,\
         lister@@putOperand              '1'
       Else
         lister@@putOperand              byte ( dstOperand.value )
-        db dstOperand.value
+        assembly@@putByte               dstOperand.value
       End If
     Else
       fail `name, 'invalid operand'
@@ -550,21 +545,21 @@ Macro call?                             operand*
     offset                              =                                       ( theOperand.value - $ - 3 )
     If      (( offset >=     -0x8000 ) & ( offset <=     0x7fff ))
       x86@@putOpcode                    0xe8
-      dw offset
+      assembly@@putWord                 offset
       lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
     End If
   Else If (( theOperand.type = 'immediate value' ) & ( x86@@defaultAddressSize = 32 ))
     offset                              =                                       ( theOperand.value - $ - 5 )
     If      (( offset >= -0x80000000 ) & ( offset <= 0x7fffffff ))
       x86@@putOpcode                    0xe8
-      dd offset
+      assembly@@putDWord                offset
       lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
     End If
   Else If (( theOperand.type = 'pointer' ) & ( x86@@defaultAddressSize = 16 ))
     x86@@putOpcode                      0x9a
     If (( theOperand.address and     0xffff ) = theOperand.address )
-      dw theOperand.address
-      dw theOperand.segment
+      assembly@@putWord                 theOperand.address
+      assembly@@putWord                 theOperand.segment
       lister@@putOperand                word ( theOperand.segment ), ':', word ( theOperand.address )
     Else
       fail 'call', 'displacement out of bonds (16 bit)'
@@ -572,8 +567,8 @@ Macro call?                             operand*
   Else If (( theOperand.type = 'pointer' ) & ( x86@@defaultAddressSize = 32 ))
     x86@@putOpcode                      0x9a
     If (( theOperand.address and 0xffffffff ) = theOperand.address )
-      dd theOperand.address
-      dw theOperand.segment
+      assembly@@putDWord theOperand.address
+      assembly@@putWord theOperand.segment
       lister@@putOperand                word ( theOperand.segment ), ':', dword ( theOperand.address )
     Else
       fail 'call', 'displacement out of bonds (16 bit)'
@@ -599,13 +594,13 @@ Irp                                     < name, opcode >, retf,   0xca, retn,   
       If ( theOperand.value )
         x86@@putOpcode                  opcode
         If (( theOperand.value >= 0x0000 ) & ( theOperand.value <= 0xffff ))
-          dw theOperand.value
+          assembly@@putWord             theOperand.value
           lister@@putOperand            word ( theOperand.value )
         Else
           fail `name, 'invalid operand size'
         End If
       Else
-        db ( opcode + 1 )
+        assembly@@putByte               ( opcode + 1 )
       End If
     Else
       fail `name, 'invalid operand'
@@ -625,15 +620,15 @@ Macro jmp?                              operand*
     End If
     If      (( offset >=       -0x80 + 2 ) & ( offset <=       0x7f + 2 ) & ( coin ))
       x86@@putOpcode                    0xeb
-      db ( offset - 2 )
+      assembly@@putByte                 ( offset - 2 )
       lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
     Else If (( offset >=     -0x8000 + 3 ) & ( offset <=     0x7fff + 3 ) & ( x86@@defaultAddressSize = 16 ))
       x86@@putOpcode                    0xe9
-      dw ( offset - 3 )
+      assembly@@putWord                 ( offset - 3 )
       lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
     Else If (( offset >= -0x80000000 + 5 ) & ( offset <= 0x7fffffff + 5 ) & ( x86@@defaultAddressSize = 32 ))
       x86@@putOpcode                    0xe9
-      dd ( offset - 5 )
+      assembly@@putDWord                ( offset - 5 )
       lister@@putOperand                qword theOperand.value , '  ', 0x3b, '(', `operand, ')'
     Else
       fail 'jmp', 'displacement out of bonds'
@@ -641,8 +636,8 @@ Macro jmp?                              operand*
   Else If (( theOperand.type = 'pointer' ) & ( x86@@defaultAddressSize = 16 ))
     x86@@putOpcode                      0xea
     If (( theOperand.address and     0xffff ) = theOperand.address )
-      dw theOperand.address
-      dw theOperand.segment
+      assembly@@putWord                 theOperand.address
+      assembly@@putWord                 theOperand.segment
       lister@@putOperand                word ( theOperand.segment ), ':', word ( theOperand.address )
     Else
       fail 'call', 'displacement out of bonds (16 bit)'
@@ -650,8 +645,8 @@ Macro jmp?                              operand*
   Else If (( theOperand.type = 'pointer' ) & ( x86@@defaultAddressSize = 32 ))
     x86@@putOpcode                      0xea
     If (( theOperand.address and 0xffffffff ) = theOperand.address )
-      dd theOperand.address
-      dw theOperand.segment
+      assembly@@putDWord                theOperand.address
+      assembly@@putWord                 theOperand.segment
       lister@@putOperand                word ( theOperand.segment ), ':', dword ( theOperand.address )
     Else
       fail 'call', 'displacement out of bonds (16 bit)'
@@ -716,7 +711,7 @@ Macro cmp?                              dst*,                                   
         If      (( size = byte  ) & ( srcOperand.value >=       -0x80 ) & ( srcOperand.value <=       0xff ))
           x86@@putOpcode                ( 0x3c or 0 )
           lister@@putOperand            'al'
-          db srcOperand.value
+          assembly@@putByte             srcOperand.value
           lister@@putOperand            byte  ( srcOperand.value )
         Else If (( size = word  ) & ( srcOperand.value >=     -0x8000 ) & ( srcOperand.value <=     0xffff ))
           If ( x86@@defaultOperandSize = 32 )
@@ -724,7 +719,7 @@ Macro cmp?                              dst*,                                   
           End If
           x86@@putOpcode                ( 0x3c or 1 )
           lister@@putOperand            'ax'
-          dw srcOperand.value
+          assembly@@putWord             srcOperand.value
           lister@@putOperand            word  ( srcOperand.value )
         Else If (( size = dword ) & ( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ) & ( x86@@isaVersion >= x86@@i80386 ))
           If ( x86@@defaultOperandSize = 16 )
@@ -732,7 +727,7 @@ Macro cmp?                              dst*,                                   
           End If
           x86@@putOpcode                ( 0x3c or 1 )
           lister@@putOperand            'eax'
-          dd srcOperand.value
+          assembly@@putDWord            srcOperand.value
           lister@@putOperand            dword ( srcOperand.value )
         Else
           fail 'cmp', 'invalid operand size'
@@ -767,7 +762,7 @@ Macro cmp?                              dst*,                                   
         End If
         x86@@emitInstruction            'cmp',    opcode,             size,               7,                            dstOperand
         lister@@putOperand              size ( srcOperand.value )
-        emit                            length:( srcOperand.value )
+        assembly@@putData               length,                                 srcOperand.value
       Else
         fail 'cmp', 'invalid operands'
       End If
@@ -822,7 +817,7 @@ Macro test?                             dst*,                                   
         If      (( size = byte )  & ( srcOperand.value >=       -0x80 ) & ( srcOperand.value <=       0xff ))
           x86@@putOpcode                ( 0xa8 or 0 )
           lister@@putOperand            'al'
-          db srcOperand.value
+          assembly@@putByte             srcOperand.value
           lister@@putOperand            byte ( srcOperand.value )
         Else If (( size = word  ) & ( srcOperand.value >=     -0x8000 ) & ( srcOperand.value <=     0xffff ))
           If ( x86@@defaultOperandSize = 32 )
@@ -830,7 +825,7 @@ Macro test?                             dst*,                                   
           End If
           x86@@putOpcode                ( 0xa8 or 1 )
           lister@@putOperand            'ax'
-          dw srcOperand.value
+          assembly@@putWord             srcOperand.value
           lister@@putOperand            word  ( srcOperand.value )
         Else If (( size = dword ) & ( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ))
           If ( x86@@defaultOperandSize = 16 )
@@ -838,7 +833,7 @@ Macro test?                             dst*,                                   
           End If
           x86@@putOpcode                ( 0xa8 or 1 )
           lister@@putOperand            'eax'
-          dd srcOperand.value
+          assembly@@putDWord            srcOperand.value
           lister@@putOperand            dword ( srcOperand.value )
         Else
           fail 'test', 'immediate value out of bonds'
@@ -873,7 +868,7 @@ Macro test?                             dst*,                                   
         End If
         x86@@emitInstruction            'test',   opcode,             size,               0,                            dstOperand
         lister@@putOperand              size ( srcOperand.value )
-        emit                            length:( srcOperand.value )
+        assembly@@putData               length,                                 srcOperand.value
       Else
         fail 'test', 'destination operand must be register or memory operand'
       End If
@@ -937,14 +932,14 @@ Macro push?                             operand*
   Else If (( theOperand.type = 'immediate value' ) & ( x86@@isaVersion >= x86@@i80186 ))
     If      (( theOperand.value >=       -0x80 ) & ( theOperand.value <=       0xff ) & ( coin ))
       x86@@putOpcode                    ( 0x68 or 2 )
-      db theOperand.value
+      assembly@@putByte                 theOperand.value
       lister@@putOperand                byte ( theOperand.value )
     Else If (( theOperand.value >=     -0x8000 ) & ( theOperand.value <=     0xffff ) & (( x86@@defaultOperandSize = 16 ) | ( theOperand.size = word )))
       If ( x86@@defaultOperandSize = 32 )
         x86@@addPrefix                  0x66
       End If
       x86@@putOpcode                    ( 0x68 or 0 )
-      dw theOperand.value
+      assembly@@putWord                 theOperand.value
       lister@@putOperand                word ( theOperand.value )
     Else If (( theOperand.value >= -0x80000000 ) & ( theOperand.value <= 0xffffffff ))
       If ( theOperand.size = word )
@@ -954,7 +949,7 @@ Macro push?                             operand*
         x86@@addPrefix                  0x66
       End If
       x86@@putOpcode                    ( 0x68 or 0 )
-      dd theOperand.value
+      assembly@@putDWord                theOperand.value
       lister@@putOperand                dword ( theOperand.value )
     Else
       fail 'push', 'invalid operand size'
@@ -1075,7 +1070,7 @@ Macro mov?                              dst*,                                   
         lister@@putOperand              'eax'
       End If
       x86@@putOpcode                    opcode
-      emit length:( dstOperand.address )
+      assembly@@putData                 length,                                 dstOperand.address
     Else If (( dstOperand.type = 'register' ) &  ( srcOperand.type = 'memory'   ) & ( dstOperand.register = x86@@regAX ) & (( elementsof srcOperand.address ) = 0 ) & ( coin ))
       If      ( x86@@defaultAddressSize = 16 )
         If (( srcOperand.address and     0xffff ) = srcOperand.address )
@@ -1112,7 +1107,7 @@ Macro mov?                              dst*,                                   
         x86@@segmentAddressing          'mov',               srcOperand.segment,'dword ',           length,             srcOperand.address
       End If
       x86@@putOpcode                    opcode
-      emit length:( srcOperand.address )
+      assembly@@putData                 length,                                 srcOperand.address
     Else If ((( dstOperand.type = 'register' ) | ( dstOperand.type = 'memory' )) & (( srcOperand.type = 'register' ) | ( srcOperand.type = 'memory' )))
       If      ( dstOperand.type = 'register' )
         If (( srcOperand.type = 'register' ) & ( random@@randomiseOpcodes ))
@@ -1165,13 +1160,13 @@ Macro mov?                              dst*,                                   
         x86@@emitInstruction            'mov',    ( 0xc6 or opcode ), size,               null,                         dstOperand
       End If
       If      (( size = byte  ) & ( srcOperand.value >=       -0x80 ) & ( srcOperand.value <=       0xff ))
-        db srcOperand.value
+        assembly@@putByte               srcOperand.value
         lister@@putOperand              byte  ( srcOperand.value )
       Else If (( size = word  ) & ( srcOperand.value >=     -0x8000 ) & ( srcOperand.value <=     0xffff ))
-        dw srcOperand.value
+        assembly@@putWord               srcOperand.value
         lister@@putOperand              word  ( srcOperand.value )
       Else If (( size = dword ) & ( srcOperand.value >= -0x80000000 ) & ( srcOperand.value <= 0xffffffff ))
-        dd srcOperand.value
+        assembly@@putDWord              srcOperand.value
         lister@@putOperand              dword ( srcOperand.value )
       Else
         fail 'mov', 'immediate value out of bonds'
@@ -1252,7 +1247,8 @@ End Macro
 Macro int?                              number*
   lister@@putInstruction                'int'
   lister@@putOperand                    byte number
-  x86@@putOpcode                        0xcd, number
+  x86@@putOpcode                        0xcd
+  assembly@@putByte                     number
 End Macro
 Macro xchg?                             dst*,                                   src*
   Local size, srcOperand, dstOperand, coin, opcode
@@ -1331,7 +1327,7 @@ Macro in?                               accumulator*,                           
       fail 'in', 'invalid operand size'
     End If
     If (( dstOperand.value >= 0x00 ) & ( dstOperand.value <= 0xff ))
-      db dstOperand.value
+      assembly@@putByte                 dstOperand.value
       lister@@putOperand                byte ( dstOperand.value )
     Else
       fail 'in', 'port-number must be a positive 8 bit value'
@@ -1397,7 +1393,7 @@ Macro out?                              port*,                                  
     Else
       fail 'out', 'invalid operand size'
     End If
-    db dstOperand.value ;already checked
+    assembly@@putByte                   dstOperand.value ;already checked
   Else If ( dstOperand.type = 'register' )
     If (( dstOperand.register = x86@@regDX ) & ( dstOperand.size = word ))
       ;yep, its always dx
@@ -1606,4 +1602,3 @@ Macro x86@@killMySelf
     Purge psrlw?, psrld?, psrlq?, movd?, movq?, emms?, rdpmc?                                                                     ;MMX
   ;}
 End Macro
-

@@ -20,14 +20,14 @@ Macro enter?                            size*,                                  
     ;nesting level is a positive 8 bit value below 32, but the cpu does a ( imm8 mod 32 ), so values above are also allowed
     ;allowes some randomisation, but enter is not very fast, so nobody uses this anymore
     x86@@putOpcode                      0xc8
-    dw srcOperand.value
+    assembly@@putWord                   srcOperand.value
     If ( random@@randomiseOpcodes )
       coin                              random@@random
       coin                              =                                       ( coin and 0xe0 )
     Else
       coin                              =                                       null
     End If
-    db ( coin or dstOperand.value )
+    assembly@@putByte                   ( coin or dstOperand.value )
     lister@@putOperand                  word ( srcOperand.value )
     lister@@putOperand                  byte ( dstOperand.value )
   Else

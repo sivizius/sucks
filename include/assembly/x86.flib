@@ -1,4 +1,25 @@
 Include 'include/assembly/lister.flib'
+Macro assembly@@putInstruction          length*,                                intructions&
+  emit length: instructions
+End Macro
+Macro assembly@@putPrefix               length*,                                prefixes&
+  emit length: prefixes
+End Macro
+Macro assembly@@putByte                 data&
+  db data
+End Macro
+Macro assembly@@putWord                 data&
+  dw data
+End Macro
+Macro assembly@@putDWord                data&
+  dd data
+End Macro
+Macro assembly@@putQWord                data&
+  dq data
+End Macro
+Macro assembly@@putData                 length*,                                data*
+  emit length:( data )
+End Macro
 ;( some constants )
 ;{
   ;( direction bit )
@@ -764,24 +785,24 @@ Macro x86@@emitInstruction              name*,    opcode*,  opSize*,            
   ;}
   ;( modR/M )
   ;{
-    db ( modField or ( regField shl 3 ) or memField )                           ;mod : reg : r/m
+    assembly@@putByte ( modField or ( regField shl 3 ) or memField )            ;mod : reg : r/m
   ;}
   ;( SIB – factor : index : base )
   ;{
     If      ( factor = 1 )
-      db ( 0x00 or ( index shl 3 ) or base )
+      assembly@@putByte ( 0x00 or ( index shl 3 ) or base )
     Else If ( factor = 2 )
-      db ( 0x40 or ( index shl 3 ) or base )
+      assembly@@putByte ( 0x40 or ( index shl 3 ) or base )
     Else If ( factor = 4 )
-      db ( 0x80 or ( index shl 3 ) or base )
+      assembly@@putByte ( 0x80 or ( index shl 3 ) or base )
     Else If ( factor = 8 )
-      db ( 0xc0 or ( index shl 3 ) or base )
+      assembly@@putByte ( 0xc0 or ( index shl 3 ) or base )
     End If
   ;}
   ;( displacement )
   ;{
     If ( length )
-      emit length:( disp )
+      assembly@@putData                 length,                                 disp
     End If
   ;}
 End Macro
@@ -790,24 +811,90 @@ End Macro
 
 ;( handle prefixes )
 ;{
+  assembly@@niceOpcodes                 =                                       false
+  x86@@hazLockPrefix                    =                                       false
+  x86@@hazREPZPrefix                    =                                       false
+  x86@@hazREPNZPrefix                   =                                       false
+  x86@@hazSegmentOverridePrefix         =                                       false
+  x86@@hazOperandSizePrefix             =                                       false
+  x86@@hazAddressSizePrefix             =                                       false
+  x86@@hazREXPrefix                     =                                       false
   Macro x86@@addPrefix                  prefix*
-    x86@@lstPrefixes                    Equ                                     prefix
+    If ( assembly@@niceOpcodes )
+      If      ( prefix = 0x26 )         ;es
+        x86@@hazSegmentOverridePrefix   =                                       prefix
+      Else If ( prefix = 0x2e )         ;cs or unlikely
+        x86@@hazSegmentOverridePrefix   =                                       prefix
+      Else If ( prefix = 0x36 )         ;ss
+        x86@@hazSegmentOverridePrefix   =                                       prefix
+      Else If ( prefix = 0x3e )         ;ds or likely
+        x86@@hazSegmentOverridePrefix   =                                       prefix
+      Else If ( prefix = 0x64 )         ;fs
+        x86@@hazSegmentOverridePrefix   =                                       prefix
+      Else If ( prefix = 0x65 )         ;gs
+        x86@@hazSegmentOverridePrefix   =                                       prefix
+      Else If ( prefix = 0x66 )         ;operand size override  or some mandatory prefix
+        x86@@hazOperandSizePrefix       =                                       true
+      Else If ( prefix = 0x67 )         ;address size override
+        x86@@hazAddressSizePrefix       =                                       true
+      Else If ( prefix = 0xf0 )         ;lock
+        x86@@hazLockPrefix              =                                       true
+      Else If ( prefix = 0xf2 )         ;repnz or repne         or some mandatory prefix
+        x86@@hazREPNZPrefix             =                                       true
+      Else If ( prefix = 0xf3 )         ;repz  or repe          or some mandatory prefix
+        x86@@hazREPZPrefix              =                                       true
+      Else
+        fail 'x86@@addPrefix', 'unknown prefix ', byte prefix
+      End If
+    Else
+      x86@@lstPrefixes                  Equ                                     prefix
+    End If
   End Macro
-  Macro x86@@putOpcode                  opcode&               ;for multi-byte opcodes, where $opcode is not a < list > or for simple one-byte operands
+  Macro x86@@putOpcode                  opcode&               ;for multi-byte opcodes, where $opcode is not a < list >
     Match                               ,                                       opcode
       fail 'x86@@putOpcode', 'missing opcode'
     End Match
-    If ( random@@randomisePrefixes )
-      random@@permuteBytes              x86@@lstPrefixes
-    Else
+    If      ( random@@randomisePrefixes )                                                                               ;the processor does not care about the number or order of prefixes
+      random@@permuteBytes              x86@@lstPrefixes                                                                ;as long prefixes are valid and the instruction size is below 16 bytes
+    Else If ( assembly@@niceOpcodes )                                                                                   ;prefix-order as documented
+      If      ( x86@@hazLockPrefix + x86@@hazREPZPrefix + x86@@hazREPNZPrefix > 1 )                                     ;group 1
+        fail 'x86@@putOpcode', 'only one prefix in group 1 can be used'
+      Else If ( x86@@hazLockPrefix )
+        assembly@@putPrefix             byte,                                   0xf0
+        x86@@hazLockPrefix              =                                       false
+      Else If ( x86@@hazREPNZPrefix )
+        assembly@@putPrefix             byte,                                   0xf2
+        x86@@hazREPNZPrefix             =                                       false
+      Else If ( x86@@hazREPZPrefix )
+        assembly@@putPrefix             byte,                                   0xf3
+        x86@@hazREPZPrefix              =                                       false
+      End If
+      If ( x86@@hazSegmentOverridePrefix )                                                                              ;group 2
+        assembly@@putPrefix             byte,                                   x86@@hazSegmentOverridePrefix
+        x86@@hazSegmentOverridePrefix   =                                       false
+      End If
+      If ( x86@@hazOperandSizePrefix )                                                                                  ;group 3
+        assembly@@putPrefix             byte,                                   0x66
+        x86@@hazOperandSizePrefix       =                                       false
+      End If
+      If ( x86@@hazAddressSizePrefix )                                                                                  ;group 4
+        assembly@@putPrefix             byte,                                   0x67
+        x86@@hazAddressSizePrefix       =                                       false
+      End If
+      If ( x86@@hazREXPrefix )                                                                                          ;REX.BXRW
+        assembly@@putPrefix             byte,                                   x86@@hazREXPrefix
+        x86@@hazREXPrefix               =                                       false
+      End If
+      ;VEX-prefixes...this is a bit different
+    Else                                                                                                                ;put prefixes in the order they occur
       Irpv                              item,                                   x86@@lstPrefixes
-        db item
+        assembly@@putPrefix             byte,                                   item
       End Irpv
     End If
     Irpv                                item,                                   x86@@lstPrefixes
       Restore x86@@lstPrefixes
     End Irpv
-    db opcode
+    assembly@@putInstruction            byte,                                   opcode
   End Macro
 ;}
 ;( specify instruction subsets )
