@@ -1,8 +1,8 @@
 sucks
 =====
-Sucks is a macroinstruction set for [flatassembler G (fasmg)](https://flatassembler.net/) with the main-purpose of creating executables from a high-level language.
+Sucks is a macroinstruction set for flatassembler g with the main-purpose of creating executables from a high-level language.
 As such you can call this a extension for the compiler fasmg.
-There is actually not the purpose but many purposes and ways you can use this repository and I try to show a lot of aspects.
+There is actually not the one purpose but many purposes and ways you can use this repository.
 
 usage and key files
 -------------------
@@ -19,8 +19,8 @@ also the text editor of your choice to view and edit the files locally.
 | *build/*                                              | working directory of *make.sh* and its output (bin, deasm, logs, etc.). |
 | *include/*                                            | the macroinstructions. actually the core of this repository.            |
 | [*include/assembly/*](include/assembly/README.md)     | assembly-like instructions, for example the x86-instructionset.         |
-| *include/formats/*                                    | different [output-formats](#formats).                                   |
-| *include/crypto/*                                     | macroinstructions to encrypt, decrypt and sign data.                    |
+| [*include/formats/*](include/formats/README.md)       | different output-formats.                                               |
+| [*include/crypto/*](include/crypto/README.md)         | macroinstructions to encrypt, decrypt and sign data.                    |
 | *include/main/*                                       | some general purpose macroinstructions and constants.                   |
 
 Do not include the sub-directories of *include/* directly!
