@@ -23,7 +23,7 @@ Struc assembly@@fbc0                    ignore&
     stop
     fbc0@@killMySelf
   End Macro
-  Include 'include/assembly/fbc0.flib'
+  Include 'include/assembly/fruitbot/fbc0.flib'
   .machine                              =                                       fbc0@@version
 End Struc
 assembly@@addInstructionSet             fbc0,                                   assembly@@fbc0

@@ -881,19 +881,19 @@ End Macro
 ;{
   Macro useFPU?                         machine*
     Match                               =8087,                                  machine
-      Include 'include/assembly/8087.flib'
+      Include 'include/assembly/x87/8087.flib'
     Else Match                          =80187,                                 machine
-      Include 'include/assembly/80187.flib'
+      Include 'include/assembly/x87/80187.flib'
     Else Match                          =80287,                                 machine
-      Include 'include/assembly/80287.flib'
+      Include 'include/assembly/x87/80287.flib'
     Else Match                          =80387,                                 machine
-      Include 'include/assembly/80387.flib'
+      Include 'include/assembly/x87/80387.flib'
     Else
       fail 'useFPU', 'unknown machine »', `machine, '«'
     End Match
   End Macro
   Macro useMMX?
-    Include 'include/assembly/MMX.flib'
+    Include 'include/assembly/x86/MMX.flib'
   End Macro
   Macro use16?
     x86@@defaultOperandSize             =                                       16
@@ -929,42 +929,42 @@ End Macro
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
-    Include 'include/assembly/8086.flib'
+    Include 'include/assembly/x86/8086.flib'
     .machine                            =                                       x86@@isaVersion
   End Struc
   Struc assembly@@80186                 ignore&
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
-    Include 'include/assembly/80186.flib'
+    Include 'include/assembly/x86/80186.flib'
     .machine                            =                                       x86@@isaVersion
   End Struc
   Struc assembly@@80286                 ignore&
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
-    Include 'include/assembly/80286.flib'
+    Include 'include/assembly/x86/80286.flib'
     .machine                            =                                       x86@@isaVersion
   End Struc
   Struc assembly@@80386                 ignore&
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
-    Include 'include/assembly/80386.flib'
+    Include 'include/assembly/x86/80386.flib'
     .machine                            =                                       x86@@isaVersion
   End Struc
   Struc assembly@@80486                 ignore&
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
-    Include 'include/assembly/80486.flib'
+    Include 'include/assembly/x86/80486.flib'
     .machine                            =                                       x86@@isaVersion
   End Struc
   Struc assembly@@pentium               ignore&
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
-    Include 'include/assembly/pentium.flib'
+    Include 'include/assembly/x86/pentium.flib'
     .machine                            =                                       x86@@isaVersion
   End Struc
   assembly@@addInstructionSet           8086,                                   assembly@@8086

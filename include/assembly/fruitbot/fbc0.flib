@@ -1,3 +1,4 @@
+Include 'include/assembly/fruitbot/opcodes.flib'
 fbc0@@version                           =                                       0xc0fb
 ;( arguments )
 ;{
@@ -142,4 +143,3 @@ Macro fbc0@@killMySelf
   Purge allocGlobal, allocLocal, allocate
   Purge when, next, loop, break, done
 End Macro
-

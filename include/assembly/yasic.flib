@@ -1,11 +1,11 @@
-Include 'include/yasic/expressions.flib'
-Include 'include/yasic/operators.flib'
-Include 'include/yasic/optimise.flib'
-Include 'include/yasic/queque.flib'
-Include 'include/yasic/stack.flib'
-Include 'include/yasic/strings.flib'
-Include 'include/yasic/types.flib'
-Include 'include/yasic/variables.flib'
+Include 'include/assembly/yasic/expressions.flib'
+Include 'include/assembly/yasic/operators.flib'
+Include 'include/assembly/yasic/optimise.flib'
+Include 'include/assembly/yasic/queque.flib'
+Include 'include/assembly/yasic/stack.flib'
+Include 'include/assembly/yasic/strings.flib'
+Include 'include/assembly/yasic/types.flib'
+Include 'include/assembly/yasic/variables.flib'
 yasic@@lenStack                         =                                       ( 4096 * 16 )
 yasic@@lenHelpStack                     =                                       ( 4096 * 16 )
 yasic@@lenQueque                        =                                       ( 4096 * 16 )
@@ -55,7 +55,7 @@ Struc assembly@@yasic                   ignore&
   yasic@@newType                        word,                                   word
   yasic@@newType                        dword,                                  dword
   yasic@@newType                        qword,                                  qword
-  Include 'include/yasic/ifwhile.flib'
+  Include 'include/assembly/yasic/ifwhile.flib'
   Macro assembly@@finaliser
     Local symb, delsymb, newsymb, found
     assembly@@finaliser

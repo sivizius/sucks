@@ -46,6 +46,6 @@ End Struc
 ;{
   Include 'include/assembly/x86.flib'
   Include 'include/assembly/fruitbot.flib'
-  Include 'include/yasic.flib'
+  Include 'include/assembly/yasic.flib'
 ;Include 'include/compile.flib'
 ;}

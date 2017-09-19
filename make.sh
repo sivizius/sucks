@@ -9,4 +9,5 @@ if fasmg  "-i" "random@@seed = (( $RANDOM shl 60 ) xor ( $RANDOM shl 45 ) xor ( 
           "compiler.fasm" "build/$file"
 then
   hexdump -v -e '"0x%04_ax " 32/1 "%02X " " | "' -e '32/1 "%_p" "\n"' "build/$file"
+#    objdump "-D" "-Mintel" "-bbinary" "-m$2" "build/$file"
 fi

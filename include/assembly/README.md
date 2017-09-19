@@ -25,6 +25,8 @@ To add your own instructionset you have to add at least two files:
     will be included by *../assembly.flib*, so you have to add this file there.
   The second file contains the actual macros of the instruction set and should contain a destructor, so the macroinstructions of your instructionset is only available inside a `code`-block.
 If there are different versions of your instructionset you can add more files, that are similar to the second file.
+Consider to put all the different versions of the instructionset in a seperate directory,
+  e.g. if your instructionset is *yourInstructionSet*, you create the file *yourInstructionSet.flib* and the directory *yourInstructionSet*.
 
 To add your instructionset to the list of availabe instructionsets you have to provide a macro like this:
 ```
@@ -32,18 +34,18 @@ To add your instructionset to the list of availabe instructionsets you have to p
       Macro assembly@@finaliser                                                                     ;assembly@@yourInstructionSet will be called with `code`, assembly@@finaliser with `end code`.
         yourInstructionSet@@killMySelf                                                              ;Purges all your macros, except internal ones.
       End Macro                                                                                     ;Make sure, that all the instructions are not available anymore.
-      Include 'include/assembly/yourInstructionSet_version0.flib'                                   ;Load the instructionset version 0. E.g. 80386.flib for i386-assembly. (second file)
+      Include 'include/assembly/yourInstructionSet/version0.flib'                                   ;Load the instructionset version 0. E.g. 80386.flib for i386-assembly. (second file)
       .machine = yourInstructionSet@@version0                                                       ;Used e.g. by uf4 to specify the ISA of a code-yapter.
                                                                                                     ;Make sure, that this magic value does not interfere with other instructionsets.
     End Struc                                                                                       ;Please use upper-case, otherwise it could cause hardly debuggable errors.
     assembly@@addInstructionSet         yourInstructionSet, assembly@@yourInstructionSet            ;This actually adds the yourInstructionSet to the list of instructionsets.
 ```
 
-Finally you have to add `Include 'include/assembly/yourInstructionSet.flib'` (first file) below `;add your instructionsets here` in *../assembly.flib*.
-Internal macros, structures, variables, constants, etc. should start with *yourInstructionSet@@*, so they do not interfere with other modules.
+Finally you have to add `Include 'include/assembly/yourInstructionSet.flib'` (first file) below `add your instructionsets here` in *../assembly.flib*.
+Internal macros, structures, variables, constants, etc. should start with `yourInstructionSet@@`, so they do not interfere with other modules.
 Local symbols, that are not accessable outside an macro, i.e. `temp`, can be named as you want. Nobody cares about your local shit.
 All you files should use *flib* as file-extension.
-Have a look at the other 
+Have a look at the other.
 
 include/assembly/lister.flib
 ----------------------------
@@ -70,4 +72,4 @@ currently available instructionsets
     * MMX
 * fruitbot byte code
   * version 0
-* yasic
+* yet another symbolic instruction code

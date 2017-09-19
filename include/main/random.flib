@@ -90,7 +90,7 @@ Struc random@@glfsr                     state*,                                 
       End If
     End Irp
   Else
-    fail 'random@@g,lfsr', 'state is null'
+    fail 'random@@glfsr', 'state is null'
   End If
 End Struc
 
