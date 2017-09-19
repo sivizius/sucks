@@ -86,7 +86,7 @@ This macroinstruction subset provides some macros for assembly languages of diff
 * Zilog Z80
   * comming soon
 * byte code
-  - [x] [fbc0 – fruitbot byte code version 0](include/assembly/fruitbot/README.md)
+  - [x] [fbc0 – fruitbot byte code version 0](fruitbot/README.md)
   - [ ] jvm – java virtual machine
   - [ ] cpy - cpython byte code
   - [ ] rubinius byte code
@@ -94,5 +94,5 @@ This macroinstruction subset provides some macros for assembly languages of diff
   - [ ] CIL – common intermediate language
   - [ ] EBC – EFI byte code
 * high-level languages
-  - [x] [yasic – yet another symbolic instruction code](include/assembly/yasic/README.md)
+  - [x] [yasic – yet another symbolic instruction code](yasic/README.md)
 * suggest more, but as you can see, I already have a bunch of work to do.
