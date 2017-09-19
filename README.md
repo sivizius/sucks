@@ -9,19 +9,19 @@ usage and key files
 You need [flatassembler g](http://flatassembler.net/download.php "click here to download flatassembler G") for building this project and
 also the text editor of your choice to view and edit the files locally.
 
-| file name                                                                     | description                                                             |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| *README.md*                                                                   | this file.                                                              |
-| *LICENCE.md*                                                                  | this is the licence that applies to this repository.                    |
-| *make.sh*                                                                     | bash script to build the examples.                                      |
-| *clean.sh*                                                                    | bash script to clean repository. (removes a lot of temporary files)     |
-| *examples/*                                                                   | examples that use this macroinstructions.                               |
-| *build/*                                                                      | working directory of *make.sh* and its output (bin, deasm, logs, etc.). |
-| *include/*                                                                    | the macroinstructions. actually the core of this repository.            |
-| [*include/assembly/*](sivizius/sucks/blob/master/include/assembly/README.md)  | assembly-like instructions, for example the x86-instructionset.         |
-| *include/formats/*                                                            | different [output-formats](#formats).                                   |
-| *include/crypto/*                                                             | macroinstructions to encrypt, decrypt and sign data.                    |
-| *include/main/*                                                               | some general purpose macroinstructions and constants.                   |
+| file name                                             | description                                                             |
+| ----------------------------------------------------- | ----------------------------------------------------------------------- |
+| *README.md*                                           | this file.                                                              |
+| *LICENCE.md*                                          | this is the licence that applies to this repository.                    |
+| *make.sh*                                             | bash script to build the examples.                                      |
+| *clean.sh*                                            | bash script to clean repository. (removes a lot of temporary files)     |
+| *examples/*                                           | examples that use this macroinstructions.                               |
+| *build/*                                              | working directory of *make.sh* and its output (bin, deasm, logs, etc.). |
+| *include/*                                            | the macroinstructions. actually the core of this repository.            |
+| [*include/assembly/*](include/assembly/README.md)     | assembly-like instructions, for example the x86-instructionset.         |
+| *include/formats/*                                    | different [output-formats](#formats).                                   |
+| *include/crypto/*                                     | macroinstructions to encrypt, decrypt and sign data.                    |
+| *include/main/*                                       | some general purpose macroinstructions and constants.                   |
 
 Do not include the sub-directories of *include/* directly!
 Include *include/assembly.flib*,  *include/formats.flib*, etc. instead.
