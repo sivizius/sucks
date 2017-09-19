@@ -113,8 +113,11 @@ Macro yasic@@newFunction                varName*,                               
         displayOnNewLine '}'
         yasic@@numLocalVariables        varName
         ;displayValue '~~0x', .yasic@@#varName#@num_#theType
-        yasic@@global                   Equ                                     +
         yasic@@func                     Equ
+        yasic@@global                   Equ                                     +
+        lister@@indentLess
+        lister@@putPrefix               'end'
+        lister@@putInstruction          'function'
         temp                            format@@endSpace                        ;</function>
         .yasic@@#varName#@type          =                                       ( yasic@@tFunction )
         .yasic@@#varName#@addr          =                                       ( temp.offs )

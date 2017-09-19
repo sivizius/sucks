@@ -5,5 +5,10 @@ file="${file%.*}"
 
 if fasmg "-i" "random@@seed = (( $RANDOM shl 60 ) xor ( $RANDOM shl 45 ) xor ( $RANDOM shl 30 ) xor ( $RANDOM shl 15 ) xor $RANDOM )" "$1" "build/$file";
 then
-  objdump "-D" "-Mintel" "-bbinary" "-m$2" "build/$file"
+  if [[ "$2" -eq "fbc0" ]]
+  then
+    echo "<hmpf>"
+  else
+    objdump "-D" "-Mintel" "-bbinary" "-m$2" "build/$file"
+  fi
 fi

@@ -1,0 +1,51 @@
+Include 'include/assembly/lister.flib'
+Macro assembly@@putInstruction          ignore&
+  ;hint for a compiler or optimiser for the linked list of instructions
+  ;ignored, when code is just assembled
+End Macro
+Macro assembly@@putByte                 data&
+  db                                    data
+End Macro
+Macro assembly@@putWord                 data&
+  dw                                    data
+End Macro
+Macro assembly@@putDWord                data&
+  dd                                    data
+End Macro
+Macro assembly@@putQWord                data&
+  dq                                    data
+End Macro
+Macro assembly@@putData                 length*,                                data*
+  dbx ( length ):                       data
+End Macro
+Struc assembly@@putSymbol               theSymbol&
+  .                                     symbol                                  theSymbol
+End Struc
+Macro assembly@@addInstructionSet       instructionSet*,                        initialiser*
+  code@@lstInstructionSets              Equ                                     instructionSet initialiser
+End Macro
+Struc assembly@@findInstructionSet      theInstructionSet*
+  .                                     =                                       false
+  Irpv                                  item,                                   code@@lstInstructionSets
+    Match                               instructionSet initialiser,             item
+      If ( `instructionSet = `theInstructionSet )
+        .                               =                                       true
+        .name                           Equ                                     `theInstructionSet
+        Struc .init                     lstArguments&
+          .                             initialiser                             lstArguments
+        End Struc
+        Break
+      End If
+    Else
+      fail 'assembly@@findInstructionSet', 'cannot parse entry in list of code-spaces (u know, what i mean)'
+    End Match
+  End Irpv
+End Struc
+
+;( make several instructionsets available, but do not actually include the macros themself. add codes spaces instead )
+;{
+  Include 'include/assembly/x86.flib'
+  Include 'include/assembly/fruitbot.flib'
+  Include 'include/yasic.flib'
+;Include 'include/compile.flib'
+;}

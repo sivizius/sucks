@@ -1,0 +1,29 @@
+;Include 'include/fruitbot/decode.flib'
+Include 'include/fruitbot/opcodes.flib'
+;( types )
+;{
+  fbc0@@tNothing                        =                                       0x00                                    ;empty operant
+  fbc0@@tConstant                       =                                       0x01                                    ;value                is a constant value
+  fbc0@@tString                         =                                       0x02                                    ;operant              is a constant string
+  fbc0@@tAddress                        =                                       0x03                                    ;value                is at address=value
+  fbc0@@tBuffer                         =                                       0x04                                    ;buffer/string        may lie at address=value
+  fbc0@@tPointer                        =                                       0x05                                    ;value/buffer/string  is at an address pointed by address
+  fbc0@@tVariable                       =                                       0x06                                    ;operant              is some kind of highlevel variable of fixed size
+  fbc0@@tRegister                       =                                       0x07                                    ;operant              is a register
+  fbc0@@tFunction                       =                                       0x08                                    ;operant              is a function
+  fbc0@@tArgument                       =                                       0x09                                    ;an argument comes after this
+  fbc0@@tTreeNode                       =                                       0x0a                                    ;its a tree-node
+  fbc0@@tOperator                       =                                       0x0b                                    ;its a operator
+  fbc0@@tStack                          =                                       0x0c                                    ;value is in the stack
+  fbc0@@tUnknown                        =                                       0xff                                    ;unknown operant, should cause an fatal error!
+;}
+Struc assembly@@fbc0                    ignore&
+  Local theMain
+  Macro assembly@@finaliser
+    stop
+    fbc0@@killMySelf
+  End Macro
+  Include 'include/assembly/fbc0.flib'
+  .machine                              =                                       fbc0@@version
+End Struc
+assembly@@addInstructionSet             fbc0,                                   assembly@@fbc0

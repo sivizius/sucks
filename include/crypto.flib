@@ -181,6 +181,6 @@ Include 'include/display.flib'
 Include 'include/mememap.flib'
 ;( some cryptos )
 ;{
-  Include 'include/aes.flib'
+  Include 'include/crypto/aes.flib'
 ;}
 

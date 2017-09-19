@@ -27,10 +27,10 @@ Macro listing?                          base:( null )
       rb ( lenListing )
   End Virtual
   ptrListing                            =                                       null
-  offsLine                              =                                       null
+  offsLine                              =                                       -1
   hazPrefix                             =                                       false
   displayIndentation                    =                                       display@@indentLevel
-  lister@@indentMore
+  ;lister@@indentMore
   Macro lister@@putPrefix               thePrefix&
     Local temp
     temp                                =                                       ( $ + base )
@@ -40,15 +40,6 @@ Macro listing?                          base:( null )
         If ( offsLine )
           db 10
           offsLine                      =                                       -1
-        End If
-        If ( display@@indentSpace < 0 )
-          Repeat ( displayIndentation )
-            db 9
-          End Repeat
-        Else
-          Repeat ( displayIndentation * display@@indentSpace )
-            db ' '
-          End Repeat
         End If
         db '0x'
         hq temp
@@ -74,15 +65,6 @@ Macro listing?                          base:( null )
         If ( offsLine )
           db 10
           offsLine                      =                                       -1
-        End If
-        If ( display@@indentSpace < 0 )
-          Repeat ( displayIndentation )
-            db 9
-          End Repeat
-        Else
-          Repeat ( displayIndentation * display@@indentSpace )
-            db ' '
-          End Repeat
         End If
         db '0x'
         hq temp
@@ -141,17 +123,22 @@ Macro listing?                          base:( null )
     lister@@putInstruction              0x3b, theComment
   End Macro
   Macro lister@@putLabel                theLabel*
-    lister@@indentLess
     lister@@putInstruction              theLabel, ':'
-    lister@@indentMore
   End Macro
   Macro lister@@display
-    Local temp
-    Load                                temp lenListing                         From lblListing:( null )
-    display temp
+    Local char
+    Repeat                              lenListing,                             offs:( null )
+      Load                              char byte                               From lblListing:( offs )
+      If ( char = 10 )
+        displayOnNewLine ''
+      Else
+        display char
+      End If
+    End Repeat
   End Macro
   Macro end?.listing?
     lenListing                          =                                       ptrListing
+    lister@@display
     Purge lister@@putInstruction, lister@@putComment, lister@@putLabel
     Purge end?.listing?
   End Macro

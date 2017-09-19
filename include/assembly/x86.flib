@@ -1,25 +1,3 @@
-Include 'include/assembly/lister.flib'
-Macro assembly@@putInstruction          length*,                                intructions&
-  emit length: instructions
-End Macro
-Macro assembly@@putPrefix               length*,                                prefixes&
-  emit length: prefixes
-End Macro
-Macro assembly@@putByte                 data&
-  db data
-End Macro
-Macro assembly@@putWord                 data&
-  dw data
-End Macro
-Macro assembly@@putDWord                data&
-  dd data
-End Macro
-Macro assembly@@putQWord                data&
-  dq data
-End Macro
-Macro assembly@@putData                 length*,                                data*
-  emit length:( data )
-End Macro
 ;( some constants )
 ;{
   ;( direction bit )
@@ -37,15 +15,16 @@ End Macro
   ;}
   ;( x86@@isaVersion )
   ;{
-    x86@@i8086                          =                                       0
-    x86@@i8088                          =                                       0
-    x86@@i80186                         =                                       1
-    x86@@i80188                         =                                       1
-    x86@@i80286                         =                                       2
-    x86@@i80386                         =                                       3
-    x86@@i80486                         =                                       4
-    x86@@iPentium                       =                                       5
-    x86@@iPentiumII                     =                                       6
+    x86@@x86                            =                                       0x8600
+    x86@@i8086                          =                                       x86@@x86 + 0
+    x86@@i8088                          =                                       x86@@x86 + 0
+    x86@@i80186                         =                                       x86@@x86 + 1
+    x86@@i80188                         =                                       x86@@x86 + 1
+    x86@@i80286                         =                                       x86@@x86 + 2
+    x86@@i80386                         =                                       x86@@x86 + 3
+    x86@@i80486                         =                                       x86@@x86 + 4
+    x86@@iPentium                       =                                       x86@@x86 + 5
+    x86@@iPentiumII                     =                                       x86@@x86 + 6
   ;}
   ;( x87@@isaVersion )
   ;{
@@ -860,41 +839,42 @@ End Macro
       If      ( x86@@hazLockPrefix + x86@@hazREPZPrefix + x86@@hazREPNZPrefix > 1 )                                     ;group 1
         fail 'x86@@putOpcode', 'only one prefix in group 1 can be used'
       Else If ( x86@@hazLockPrefix )
-        assembly@@putPrefix             byte,                                   0xf0
+        assembly@@putByte               byte,                                   0xf0
         x86@@hazLockPrefix              =                                       false
       Else If ( x86@@hazREPNZPrefix )
-        assembly@@putPrefix             byte,                                   0xf2
+        assembly@@putByte               byte,                                   0xf2
         x86@@hazREPNZPrefix             =                                       false
       Else If ( x86@@hazREPZPrefix )
-        assembly@@putPrefix             byte,                                   0xf3
+        assembly@@putByte               byte,                                   0xf3
         x86@@hazREPZPrefix              =                                       false
       End If
       If ( x86@@hazSegmentOverridePrefix )                                                                              ;group 2
-        assembly@@putPrefix             byte,                                   x86@@hazSegmentOverridePrefix
+        assembly@@putByte               byte,                                   x86@@hazSegmentOverridePrefix
         x86@@hazSegmentOverridePrefix   =                                       false
       End If
       If ( x86@@hazOperandSizePrefix )                                                                                  ;group 3
-        assembly@@putPrefix             byte,                                   0x66
+        assembly@@putByte               byte,                                   0x66
         x86@@hazOperandSizePrefix       =                                       false
       End If
       If ( x86@@hazAddressSizePrefix )                                                                                  ;group 4
-        assembly@@putPrefix             byte,                                   0x67
+        assembly@@putByte               byte,                                   0x67
         x86@@hazAddressSizePrefix       =                                       false
       End If
       If ( x86@@hazREXPrefix )                                                                                          ;REX.BXRW
-        assembly@@putPrefix             byte,                                   x86@@hazREXPrefix
+        assembly@@putByte               byte,                                   x86@@hazREXPrefix
         x86@@hazREXPrefix               =                                       false
       End If
       ;VEX-prefixes...this is a bit different
     Else                                                                                                                ;put prefixes in the order they occur
       Irpv                              item,                                   x86@@lstPrefixes
-        assembly@@putPrefix             byte,                                   item
+        assembly@@putByte               byte,                                   item
       End Irpv
     End If
     Irpv                                item,                                   x86@@lstPrefixes
       Restore x86@@lstPrefixes
     End Irpv
-    assembly@@putInstruction            byte,                                   opcode
+    assembly@@putInstruction
+    assembly@@putByte                   opcode
   End Macro
 ;}
 ;( specify instruction subsets )
@@ -945,92 +925,52 @@ End Macro
 ;}
 ;( code-spaces )
 ;{
-  ;( elf )
-  ;{
-    Macro elf@@code_8086                ignore&
-      Macro elf@@codeFinaliser
-        x86@@killMySelf
-        displayOnNewLine 'listing:', 10
-        lister@@display
-        end listing
-      End Macro
-      listing
-      Include 'include/assembly/8086.flib'
+  Struc assembly@@8086                  ignore&
+    Macro assembly@@finaliser
+      x86@@killMySelf
     End Macro
-    Macro elf@@code_80186               ignore&
-      Include 'include/assembly/80186.flib'
-      Macro elf@@codeFinaliser
-        x86@@killMySelf
-      End Macro
+    Include 'include/assembly/8086.flib'
+    .machine                            =                                       x86@@isaVersion
+  End Struc
+  Struc assembly@@80186                 ignore&
+    Macro assembly@@finaliser
+      x86@@killMySelf
     End Macro
-    Macro elf@@code_80286               ignore&
-      Include 'include/assembly/80286.flib'
-      Macro elf@@codeFinaliser
-        x86@@killMySelf
-      End Macro
+    Include 'include/assembly/80186.flib'
+    .machine                            =                                       x86@@isaVersion
+  End Struc
+  Struc assembly@@80286                 ignore&
+    Macro assembly@@finaliser
+      x86@@killMySelf
     End Macro
-    Macro elf@@code_80386               ignore&
-      Include 'include/assembly/80386.flib'
-      Macro elf@@codeFinaliser
-        x86@@killMySelf
-      End Macro
+    Include 'include/assembly/80286.flib'
+    .machine                            =                                       x86@@isaVersion
+  End Struc
+  Struc assembly@@80386                 ignore&
+    Macro assembly@@finaliser
+      x86@@killMySelf
     End Macro
-    Macro elf@@code_80486               ignore&
-      Include 'include/assembly/80486.flib'
-      Macro elf@@codeFinaliser
-        x86@@killMySelf
-      End Macro
+    Include 'include/assembly/80386.flib'
+    .machine                            =                                       x86@@isaVersion
+  End Struc
+  Struc assembly@@80486                 ignore&
+    Macro assembly@@finaliser
+      x86@@killMySelf
     End Macro
-    Macro elf@@code_Pentium             ignore&
-      Include 'include/assembly/pentium.flib'
-      Macro elf@@codeFinaliser
-        x86@@killMySelf
-      End Macro
+    Include 'include/assembly/80486.flib'
+    .machine                            =                                       x86@@isaVersion
+  End Struc
+  Struc assembly@@pentium               ignore&
+    Macro assembly@@finaliser
+      x86@@killMySelf
     End Macro
-    elf@@addCodeSpace                   8086,                                   elf@@code_8086
-    elf@@addCodeSpace                   80186,                                  elf@@code_80186
-    elf@@addCodeSpace                   80286,                                  elf@@code_80286
-    elf@@addCodeSpace                   80386,                                  elf@@code_80386
-    elf@@addCodeSpace                   80486,                                  elf@@code_80486
-    elf@@addCodeSpace                   Pentium,                                elf@@code_Pentium
-  ;}
-  ;( uf4 )
-  ;{
-    Macro uf4@@code_8086                ignore&
-      Include 'include/assembly/8086.flib'
-      Macro uf4@@codeFinaliser
-        x86@@killMySelf
-      End Macro
-    End Macro
-    Macro uf4@@code_80186               ignore&
-      Include 'include/assembly/80186.flib'
-      Macro uf4@@codeFinaliser
-        x86@@killMySelf
-      End Macro
-    End Macro
-    Macro uf4@@code_80286               ignore&
-      Include 'include/assembly/80286.flib'
-      Macro uf4@@codeFinaliser
-        x86@@killMySelf
-      End Macro
-    End Macro
-    Macro uf4@@code_80386               ignore&
-      Include 'include/assembly/80386.flib'
-      Macro uf4@@codeFinaliser
-        x86@@killMySelf
-      End Macro
-    End Macro
-    Macro uf4@@code_80486               ignore&
-      Include 'include/assembly/80486.flib'
-      Macro uf4@@codeFinaliser
-        x86@@killMySelf
-      End Macro
-    End Macro
-    Macro uf4@@code_Pentium             ignore&
-      Include 'include/assembly/pentiu,.flib'
-      Macro uf4@@codeFinaliser
-        x86@@killMySelf
-      End Macro
-    End Macro
-  ;}
+    Include 'include/assembly/pentium.flib'
+    .machine                            =                                       x86@@isaVersion
+  End Struc
+  assembly@@addInstructionSet           8086,                                   assembly@@8086
+  assembly@@addInstructionSet           80186,                                  assembly@@80186
+  assembly@@addInstructionSet           80286,                                  assembly@@80286
+  assembly@@addInstructionSet           80386,                                  assembly@@80386
+  assembly@@addInstructionSet           80486,                                  assembly@@80486
+  assembly@@addInstructionSet           Pentium,                                assembly@@pentium
 ;}

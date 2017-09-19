@@ -1,3 +1,4 @@
+fbc0@@version                           =                                       0xc0fb
 ;( arguments )
 ;{
   ;:the ›machine‹ for the internal bytecode is a stack-machine and instructions are in a reverse polish notation.
@@ -8,20 +9,32 @@
   ;:but as i said, values are sign-extended so a qword of 0xffffffffffffffff would be equal to (-1).
   ;:to prevent that, the value can be inverted and a `not` can be added on compile-time.
   Macro pushByte                        value*
-    fbc0@@instruction                   fbc0@@opPushByte
-    fbc0@@operantByte                   value
+    lister@@putInstruction              'pushByte'
+    lister@@putOperand                  byte value
+    assembly@@putInstruction
+    assembly@@putByte                   fbc0@@opPushByte
+    assembly@@putByte                   value
   End Macro
   Macro pushWord                        value*
-    fbc0@@instruction                   fbc0@@opPushWord
-    fbc0@@operantWord                   value
+    lister@@putInstruction              'pushWord'
+    lister@@putOperand                  word value
+    assembly@@putInstruction
+    assembly@@putByte                   fbc0@@opPushWord
+    assembly@@putWord                   value
   End Macro
   Macro pushDWord                       value*
-    fbc0@@instruction                   fbc0@@opPushDWord
-    fbc0@@operantDWord                  value
+    lister@@putInstruction              'pushDWord'
+    lister@@putOperand                  dword value
+    assembly@@putInstruction
+    assembly@@putByte                   fbc0@@opPushDWord
+    assembly@@putDWord                  value
   End Macro
   Macro pushQWord                       value*
-    fbc0@@instruction                   fbc0@@opPushQWord
-    fbc0@@operantQWord                  value
+    lister@@putInstruction              'pushQWord'
+    lister@@putOperand                  qword value
+    assembly@@putInstruction
+    assembly@@putByte                   fbc0@@opPushQWord
+    assembly@@putQWord                  value
   End Macro
   Macro pushConstant                    value*
     If      (( value >= -( 1 shl  7 )) & ( value < ( 1 shl  7 )))
@@ -37,8 +50,17 @@
       pushQWord                         value
     End If
   End Macro
+  Macro pushString                      string&
+    Local temp
+    lister@@putInstruction              'pushString'
+    lister@@putOperand                  '»', string, '«'
+    assembly@@putInstruction
+    assembly@@putByte                   fbc0@@opPushQWord
+    temp                                assembly@@putSymbol                     string
+    assembly@@putQWord                  temp
+  End Macro
 ;}
-Irp                                     < name,       value >,              \
+Irp                                     < name,       opcode >,             \
                                         add,          fbc0@@opAdd,          \
                                         sub,          fbc0@@opSub,          \
                                         mul,          fbc0@@opMul,          \
@@ -63,38 +85,57 @@ Irp                                     < name,       value >,              \
                                         allocLocal,   fbc0@@opAllocLocal,   \
                                         allocate,     fbc0@@opAllocate
   Macro name                            ignore
-    fbc0@@instruction                   value
+    lister@@putInstruction              `name
+    assembly@@putInstruction
+    assembly@@putByte                   opcode
   End Macro
 End Irp
-Irp                                     < name, value >,            \
-                                        when,   fbc0@@opWhen,       \
-                                        next,   fbc0@@opNext,       \
-                                        loop,   fbc0@@opLoop,       \
+Irp                                     < name, opcode >,                   \
+                                        when,   fbc0@@opWhen,               \
+                                        next,   fbc0@@opNext,               \
+                                        loop,   fbc0@@opLoop,               \
                                         call,   fbc0@@opCall
   Macro name                            address*
     Local info
     info                                yapters@@info
     pushConstant                        ( address - info.offs )
-    fbc0@@instruction                   value
+    lister@@putInstruction              `name
+;    lister@@putOperand                  string
+    assembly@@putInstruction
+    assembly@@putInstruction
+    assembly@@putByte                   opcode
   End Macro
 End Irp
 ;( functions )
 ;{
   Macro fbc0@@function                  myName*,            lenFunction*,       returnType*,        numArguments*
     Local temp
-    db                                  fbc0@@opFunction
-    stop                                                                        ;stops buggy parsers
-    dw                                  lenFunction                             ;size of function
-    dw                                  returnType                              ;type of return value
-    dw                                  numArguments                            ;number of arguments. it does not matter which type or size they have.
-    temp fbc0@@operantString            myName
-    dd                                  temp                                    ;name of function
-    dd                                  0xffffffff                              ;not used yet
+    lister@@putPrefix                   'function'
+    lister@@putLabel                    myName
+    lister@@indentMore
+    assembly@@putByte                   fbc0@@opFunction
+    assembly@@putByte                   fbc0@@opStop                            ;stops buggy parsers
+    assembly@@putWord                   lenFunction                             ;size of function
+    assembly@@putWord                   returnType                              ;type of return value
+    assembly@@putWord                   numArguments                            ;number of arguments. it does not matter which type or size they have.
+    temp                                assembly@@putSymbol                     myName
+    assembly@@putQWord                  temp                                    ;name of function
+  End Macro
+  Macro function                        theFunction*
+    Local length
+    fbc0@@function                      `theFunction,       length,             null,               null
+    Macro end?.function
+      Purge end?.function
+      lister@@indentLess
+      length                            =                                       ( $ )
+      lister@@putPrefix                 'end'
+      lister@@putInstruction            'function'
+    End Macro
   End Macro
 ;}
 
 Macro fbc0@@killMySelf
-  Purge pushByte, pushWord, pushDWord, pushQWord, pushConstant
+  Purge pushByte, pushWord, pushDWord, pushQWord, pushConstant, pushString
   Purge add, sub, mul, div, mod, not, and, or, xor, lnot, land, lor, lxor, break, done, stop
   Purge let, stop
   Purge call, fbc0@@function

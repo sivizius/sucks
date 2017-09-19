@@ -1,6 +1,4 @@
-Include 'include/fruitbot0.flib'
-Include 'include/yasic.flib'
-Include 'include/compile.flib'
+Include 'include/assembly.flib'
 ;( yapter-types )
 ;{
   yapters@@lenOfOneYapter               =                                       32
@@ -31,12 +29,6 @@ Include 'include/compile.flib'
     yapters@@tInvalidTypes              =                                       65536                                   ;and above
   ;}
 ;}
-;( code yapter )
-;{
-  Macro yapters@@addCodeSpace           language*,                              function*
-    yapters@@lstCode                    Equ                                     language function
-  End Macro
-;}
 ;( read yapters )
 ;{
   Struc yapters@@get                    ptrYapterTable*,                        numYapter*
@@ -60,6 +52,7 @@ Include 'include/compile.flib'
 Macro uf4@@initFormat                   ignore&
   Local yapters@@ctrYapters, yapters@@lblYapters, yapters@@numYapters, yapters@@lenMagic
   Local yapters@@ptrYapter, yapters@@theYapter, yapters@@theFinal
+  Local yapters@@ctrSymbols, yapters@@lblSymbols, yapters@@ptrSymbols, yapters@@maxSymbols, yapters@@lenSymbols, yapters@@flushSymbols
   format@@newSpace
     db '#!~/sba/bin/suckmore', 10
     db '#', 0x19, 0x96, 0x10, 0x03, 0x23, 0x42, 0x13, 0x37, 10, 0
@@ -102,63 +95,106 @@ Macro uf4@@initFormat                   ignore&
   Struc yapters@@endYapter
     .                                   yapters@@info
   End Struc
+  ;( manage symbols )
+  ;{
+    yapters@@maxSymbols                 =                                       null
+    yapters@@ctrSymbols                 =                                       null
+    yapters@@ptrSymbols                 =                                       null
+    displayValue 'yapters@@lenSymbols 0x', yapters@@lenSymbols
+    Virtual                             At null
+      yapters@@lblSymbols::
+        rb                              ( yapters@@lenSymbols )
+        db ''
+    End Virtual
+    Struc symbol?                       theSymbol&
+      Local temp
+      Virtual                           At null
+        db                              theSymbol
+        Store                           word  ( $ )                             At    yapters@@lblSymbols:( yapters@@ptrSymbols )
+        Load                            temp  ( $ )                             From  null
+        Store                           ( $ ) temp                              At    yapters@@lblSymbols:( yapters@@ptrSymbols + 2 )
+        .                               =                                       ( yapters@@ptrSymbols + 2 )
+        .size                           =                                       ( $ )
+        .count                          =                                       ( yapters@@ctrSymbols )
+        yapters@@ptrSymbols             =                                       ( yapters@@ptrSymbols + $ + 2 )
+        yapters@@ctrSymbols             =                                       ( yapters@@ctrSymbols + 1 )
+      End Virtual
+    End Struc
+    Macro symbol?                       theSymbol&
+      Local void
+      void                              symbol                                  theSymbol
+    End Macro
+    Macro yapters@@flushSymbols
+      If ( yapters@@ptrSymbols > yapters@@maxSymbols )
+        yapters@@maxSymbols             =                                       yapters@@ptrSymbols
+      End If
+      yapters@@ctrSymbols               =                                       null
+      yapters@@ptrSymbols               =                                       null
+    End Macro
+    Struc putSymbols?
+      Local temp, size
+      size                              =                                       yapters@@ptrSymbols
+      If ( size )
+        yapters@@newYapter              yapters@@tStrings,                      null,               null, \
+                                        null,                                   size,               .base
+          format@@newSpace
+            Load                        temp size                               From yapters@@lblSymbols:( null )
+            emit                        size:( temp )
+          format@@endSpace
+        .                               yapters@@endYapter
+        yapters@@flushSymbols
+      Else
+        .                               =                                       ( 0xffffffff )
+      End If
+    End Struc
+  ;}
   ;( code pseudo-yapter )
   ;{
     ;>  code language
     ;>    ;some code
     ;>  end code
     Macro code                          someArguments&
-      Local foundLanguage
-      foundLanguage                     =                                       false
-      Macro yapters@@codeFinaliser
+      Local temp, info, theCode, theMain, theStrings
+      Macro assembly@@finaliser
       End Macro
-
       Match                             theLanguage theRest,                    someArguments
-        Irpv                            item,                                   yapters@@lstCode
-          Match                         langCode funcCode,                      item
-            If ( `langCode = `theLanguage )
-              displayOnNewLine '<code:', `langCode, '>'
-              displayOnNewLine '{'
-              indentMore
-              foundLanguage             =                                       true
-              funcCode                  theRest
-              Break
-            End If
-          Else
-            fail 'format→uf4→code', 'cannot parse entry in list of code-spaces (u know, what i mean)'
-          End Match
-        End Irpv
-        If ( foundLanguage = false )
+        temp                            assembly@@findInstructionSet            theLanguage
+        If ( temp )
+          displayOnNewLine '<code:', temp.name, '>'
+          displayOnNewLine '{'
+          indentMore
+          info                          temp.init                               theRest
+        Else
           fail 'format→uf4→code', 'unknown language »', `theLanguage, '«'
         End If
       Else Match                        theLanguage,                            someArguments
-        Irpv                            item,                                   yapters@@lstCode
-          Match                         langCode funcCode,                      item
-            If ( `langCode = `theLanguage )
-              displayOnNewLine '<code:', `langCode, '>'
-              displayOnNewLine '{'
-              indentMore
-              foundLanguage             =                                       true
-              funcCode
-              Break
-            End If
-          Else
-            fail 'format→uf4→code', 'cannot parse entry in list of code-spaces (u know, what i mean)'
-          End Match
-        End Irpv
-        If ( foundLanguage = false )
+        temp                            assembly@@findInstructionSet            theLanguage
+        If ( temp )
+          displayOnNewLine '<code:', temp.name, '>'
+          displayOnNewLine '{'
+          indentMore
+          info                          temp.init
+        Else
           fail 'format→uf4→code', 'unknown language »', `theLanguage, '«'
         End If
       Else
-        fail 'code', 'cannot match'
+        fail 'format→uf4→code', 'cannot match'
       End Match
       Macro end?.code!
-        yapters@@codeFinaliser
+        assembly@@finaliser
+        end listing
+        theMain                         format@@endSpace
+        theCode                         yapters@@endYapter
+        theStrings                      putSymbols
         indentLess
         displayOnNewLine '}'
-        Purge yapters@@codeFinaliser
-        Purge end?.code
+        Purge assembly@@finaliser
+        Purge end?.code, temp.init
       End Macro
+      yapters@@newYapter                yapters@@tBytecode,                     info.machine,       theStrings, \
+                                        ( theMain.offs - theCode.offs ),        theCode.size,       theCode.base
+      format@@newSpace
+      listing
     End Macro
   ;}
   Macro uf4@@stopFormat
@@ -166,10 +202,12 @@ Macro uf4@@initFormat                   ignore&
     yapters@@theFinal                   yapters@@addYapter                      null
     yapters@@numYapters                 =                                       ( yapters@@ctrYapters )
     .yapters@@numYapters                =                                       ( yapters@@ctrYapters )
-    displayOnNewLine 'type     word   dword      qword              qword              qword'
+    displayOnNewLine '#yapter    type     word   dword      qword              qword              qword'
     Repeat ( yapters@@numYapters ), count:( null )
       offs                              =                                       ( yapters@@lblYapters + yapters@@lenMagic + yapters@@lenOfOneYapter * count )
-      displayOnNewLine ''
+      displayOnNewLine '0x'
+      displayHexDWord count
+      display ' '
       Load                              temp word                               From format@@lblOutput:( offs + 0x00 )
       If false
       Else If ( temp = yapters@@tFinal )
@@ -200,10 +238,22 @@ Macro uf4@@initFormat                   ignore&
       display ' 0x'
       Load                              temp qword                              From format@@lblOutput:( offs + 0x18 )
       displayHexQWord temp
+      display ' (0x'
+      displayHexQWord ( temp + yapters@@theFinal.offs + yapters@@lenOfOneYapter )
+      display ') – dd if=', theOutput, ' of=build/0x'
+      displayHexDWord count
+      display '.bin bs=1 count='
+      Load                              temp qword                              From format@@lblOutput:( offs + 0x10 )
+      displayDecimal temp
+      display ' skip='
+      Load                              temp qword                              From format@@lblOutput:( offs + 0x18 )
+      displayDecimal ( temp + yapters@@theFinal.offs + yapters@@lenOfOneYapter )
     End Repeat
+    yapters@@flushSymbols
+    yapters@@lenSymbols                 =                                       yapters@@maxSymbols
     displayValue 'ycontent @0x', ( yapters@@lblYapters + yapters@@lenMagic + yapters@@lenOfOneYapter * yapters@@numYapters )
-    Purge code, yapters@@newYapter
-    Restruc yapters@@addYapter, yapters@@info, yapters@@endYapter
+    Purge code, yapters@@newYapter, symbol?
+    Restruc yapters@@addYapter, yapters@@info, yapters@@endYapter, symbol?, putSymbols?
   End Macro
 End Macro
 format@@addFormat                       uf4,                uf4@@initFormat,    uf4@@stopFormat

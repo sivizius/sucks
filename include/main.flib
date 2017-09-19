@@ -216,4 +216,6 @@ Macro comment
   End Macro
 End Macro
 
+;Include 'include/crypto.flib'
+Include 'include/crypto/aes.flib'
 Include 'include/random.flib'

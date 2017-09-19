@@ -36,9 +36,6 @@ Macro fbc0@@code                        ignore&
   Macro fbc0@@operantQWord              value*
     dq                                  value
   End Macro
-  Struc fbc0@@getToken
-    .lenString                          =                                       lenStrings
-  End Struc
   Virtual                               At null
     lblStrings::
       rb ( lenStrings )
@@ -70,20 +67,6 @@ Macro fbc0@@code                        ignore&
     theMain                             format@@endSpace                        ;</code>
     theCode                             yapters@@endYapter
     lenStrings                          =                                       offsStrings
-    If ( lenStrings )
-      yapters@@newYapter                yapters@@tStrings,                      null,               null, \
-                                        null,                                   lenStrings,         theStrings.base
-        format@@newSpace
-          Load                          char lenStrings                         From lblStrings:( null )
-          dbx                           ( lenStrings ): char
-        ptrStrings                      format@@endSpace
-      theStrings                        yapters@@endYapter
-      fbc0@@decode                      theCode.absolute,             theCode.size,       ( theMain.offs - theCode.offs ), \
-                                        theStrings.absolute,          theStrings.size
-    Else
-      theStrings                        =                                       ( 0xffffffff )
-      fbc0@@decode                      theCode.absolute,             theCode.size,       ( theMain.offs - theCode.offs )
-    End If
     Purge fbc0@@codeFinaliser
     Purge fbc0@@instruction, fbc0@@operantByte, fbc0@@operantWord, fbc0@@operantDWord, fbc0@@operantQWord, fbc0@@operantString, fbc0@@getToken
     Restruc fbc0@@operantString
