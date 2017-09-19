@@ -59,17 +59,40 @@ Consider to add theses macroinstructions to you instructionset:
 * `lister@@indentMore` – increase indentation.
 * `lister@@indentLess` – decrease indentation.
 
-currently available instructionsets
------------------------------------
-* x86
-  * 8086
-  * 80186
-  * 80286
-  * 80386
-  * 80486
-  * Pentium
-  * subsets
-    * MMX
-* fruitbot byte code
-  * version 0
-* yet another symbolic instruction code
+instructionsets
+---------------
+This macroinstruction subset provides some macros for assembly languages of different processor architectures and byte code binaries:
+
+* Intel x86
+  * 16 bit
+    - [x] 8086 and 8086
+    - [x] 80186 and 80188
+    - [x] 80286/i286
+  * 32 bit
+    - [x] 80386/i386
+    - [x] 80486/i486
+    - [x] Pentium
+    - [x] Pentium MMX
+  * 64 bit
+* Intel x87 (floating point co-processor)
+  - [ ] 8087
+  - [ ] 80187
+  - [ ] 80287
+  - [ ] 80387
+* PIC – peripheral interface controller
+  * comming soon
+* Atmel AVR
+  * comming soon
+* Zilog Z80
+  * comming soon
+* byte code
+  - [x] [fbc0 – fruitbot byte code version 0](#fruitbot-byte-code)
+  - [ ] jvm – java virtual machine
+  - [ ] cpy - cpython byte code
+  - [ ] rubinius byte code
+  - [ ] web assembly
+  - [ ] CIL – common intermediate language
+  - [ ] EBC – EFI byte code
+* high-level languages
+  - [x] yasic – yet another symbolic instruction code
+* suggest more, but as you can see, I already have a bunch of work to do.
