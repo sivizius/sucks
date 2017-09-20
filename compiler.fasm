@@ -1,4 +1,5 @@
-Include                                 'include/format.flib'
+Include                                 'include/main.flib'
+Include                                 'include/formats.flib'
 Virtual                                 At null
   lblInput::
     Include                             theInput

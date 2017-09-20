@@ -1,5 +1,130 @@
-;Include 'include/fruitbot/decode.flib'
-Include 'include/fruitbot/opcodes.flib'
+;( opcodes )
+;{
+  fbc0@@opNull                          =                                       0x00
+  fbc0@@opPushByte                      =                                       0x01
+  fbc0@@opPushWord                      =                                       0x02
+  fbc0@@opPushDWord                     =                                       0x03
+  fbc0@@opPushQWord                     =                                       0x04
+  ;5,6,7,8,9,a,b
+  fbc0@@opLetGlobal                     =                                       0x0c
+  fbc0@@opLetLocal                      =                                       0x0d
+  fbc0@@opGetGlobal                     =                                       0x0e
+  fbc0@@opGetLocal                      =                                       0x0f
+
+  fbc0@@opAdd                           =                                       0x10
+  fbc0@@opSub                           =                                       0x11
+  fbc0@@opMul                           =                                       0x12
+  fbc0@@opDiv                           =                                       0x13
+  fbc0@@opMod                           =                                       0x14
+  fbc0@@opNot                           =                                       0x15
+  fbc0@@opAnd                           =                                       0x16
+  fbc0@@opOr                            =                                       0x17
+  fbc0@@opXor                           =                                       0x18
+  fbc0@@opShiftMore                     =                                       0x19
+  fbc0@@opUnsignedShiftMore             =                                       fbc0@@opShiftMore
+  fbc0@@opShiftLess                     =                                       0x1a
+  fbc0@@opUnsignedShiftLess             =                                       0x1b
+
+  fbc0@@opWhen                          =                                       0x20
+  fbc0@@opLoop                          =                                       0x21
+  fbc0@@opNext                          =                                       0x22
+  fbc0@@opBreak                         =                                       0x23
+  fbc0@@opDone                          =                                       0x24
+  fbc0@@opLogicalNot                    =                                       0x25
+  fbc0@@opLogicalAnd                    =                                       0x26
+  fbc0@@opLogicalOr                     =                                       0x27
+  fbc0@@opLogicalXor                    =                                       0x28
+
+  fbc0@@opFunction                      =                                       0x30
+  fbc0@@opCall                          =                                       0x31
+
+  fbc0@@opAllocGlobal                   =                                       0xfb
+  fbc0@@opAllocLocal                    =                                       0xfc
+  fbc0@@opAllocate                      =                                       0xfd
+
+  fbc0@@opStop                          =                                       0xff
+;}
+;( function )
+;{
+  fbc0@@lenFunctionHeader               =                                       16
+  fbc0@@offFunctionInstruction          =                                       0x00
+  fbc0@@offFunctionPadByte              =                                       0x01
+  fbc0@@offFunctionSize                 =                                       0x02
+  fbc0@@offFunctionReturnType           =                                       0x04
+  fbc0@@offFunctionNumArguments         =                                       0x06
+  fbc0@@offFunctionMyName               =                                       0x08
+  fbc0@@offFunctionPadDWord             =                                       0x0c
+;}
+
+Struc fbc0@@mnemonic                    instruction*
+  If      ( instruction = fbc0@@opPushByte )
+    .                                   Equ                                     'pushByte'
+  Else If ( instruction = fbc0@@opPushWord )
+    .                                   Equ                                     'pushWord'
+  Else If ( instruction = fbc0@@opPushDWord )
+    .                                   Equ                                     'pustDWord'
+  Else If ( instruction = fbc0@@opPushQWord )
+    .                                   Equ                                     'pushQWord'
+  Else If ( instruction = fbc0@@opAdd )
+    .                                   Equ                                     'add'
+  Else If ( instruction = fbc0@@opSub )
+    .                                   Equ                                     'sub'
+  Else If ( instruction = fbc0@@opMul )
+    .                                   Equ                                     'mul'
+  Else If ( instruction = fbc0@@opDiv )
+    .                                   Equ                                     'div'
+  Else If ( instruction = fbc0@@opMod )
+    .                                   Equ                                     'mod'
+  Else If ( instruction = fbc0@@opNot )
+    .                                   Equ                                     'not'
+  Else If ( instruction = fbc0@@opAnd )
+    .                                   Equ                                     'and'
+  Else If ( instruction = fbc0@@opOr )
+    .                                   Equ                                     'or'
+  Else If ( instruction = fbc0@@opXor )
+    .                                   Equ                                     'xor'
+  Else If ( instruction = fbc0@@opLogicalNot )
+    .                                   Equ                                     'lnot'
+  Else If ( instruction = fbc0@@opLogicalAnd )
+    .                                   Equ                                     'land'
+  Else If ( instruction = fbc0@@opLogicalOr )
+    .                                   Equ                                     'lor'
+  Else If ( instruction = fbc0@@opLogicalXor )
+    .                                   Equ                                     'lxor'
+  Else If ( instruction = fbc0@@opLetGlobal )
+    .                                   Equ                                     'letGlobal'
+  Else If ( instruction = fbc0@@opLetLocal )
+    .                                   Equ                                     'letLocal'
+  Else If ( instruction = fbc0@@opGetGlobal )
+    .                                   Equ                                     'getGlobal'
+  Else If ( instruction = fbc0@@opGetLocal )
+    .                                   Equ                                     'getLocal'
+  Else If ( instruction = fbc0@@opCall )
+    .                                   Equ                                     'call'
+  Else If ( instruction = fbc0@@opWhen )
+    .                                   Equ                                     'when'
+  Else If ( instruction = fbc0@@opLoop )
+    .                                   Equ                                     'loop'
+  Else If ( instruction = fbc0@@opNext )
+    .                                   Equ                                     'next'
+  Else If ( instruction = fbc0@@opBreak )
+    .                                   Equ                                     'break'
+  Else If ( instruction = fbc0@@opDone )
+    .                                   Equ                                     'done'
+  Else If ( instruction = fbc0@@opAllocGlobal )
+    .                                   Equ                                     'allocateGlobal'
+  Else If ( instruction = fbc0@@opAllocLocal )
+    .                                   Equ                                     'allocateLocal'
+  Else If ( instruction = fbc0@@opAllocate )
+    .                                   Equ                                     'allocate'
+  Else If ( instruction = fbc0@@opFunction )
+    .                                   Equ                                     'function'
+  Else If ( instruction = fbc0@@opStop )
+    .                                   Equ                                     'stop'
+  Else
+    .                                   Equ                                     '<unknown instruction>'
+  End If
+End Struc
 ;( types )
 ;{
   fbc0@@tNothing                        =                                       0x00                                    ;empty operant

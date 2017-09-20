@@ -41,8 +41,28 @@ Struc assembly@@findInstructionSet      theInstructionSet*
     End Match
   End Irpv
 End Struc
+Macro assembly@@addDisassembler         instructionSet*,                        disassembler*
+  code@@lstDisassembler                 Equ                                     instructionSet disassembler
+End Macro
+Struc assembly@@findDisassembler        theInstructionSet*
+  .                                     =                                       false
+  Irpv                                  item,                                   code@@lstDisassembler
+    Match                               instructionSet disassembler,            item
+      If ( `instructionSet = `theInstructionSet )
+        .                               =                                       true
+        .name                           Equ                                     `theInstructionSet
+        Struc .dasm                     lstArguments&
+          .                             disassembler                            lstArguments
+        End Struc
+        Break
+      End If
+    Else
+      fail 'assembly@@findDisassembler', 'cannot parse entry in list of disassemblers (u know, what i mean)'
+    End Match
+  End Irpv
+End Struc
 
-;( make several instructionsets available, but do not actually include the macros themself. add codes spaces instead )
+;( make several instructionsets and disassemblers available, but do not actually include the macros themself. add codes spaces instead )
 ;{
   Include 'include/assembly/x86.flib'
   Include 'include/assembly/fruitbot.flib'

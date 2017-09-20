@@ -1,9 +1,12 @@
 Element invalid
+nil                                     =                                       (( 1 shl 63 ) - 1 + ( 1 shl 63 ))
 null                                    =                                       ( 0 )
 false                                   Equ                                     ( 0 )
 true                                    Equ                                     ( 1 )
-nil                                     =                                       (( 1 shl 63 ) - 1 + ( 1 shl 63 ))
 decimal                                 =                                       ( -1 )
+NUMBER                                  =                                       ( 23 )
+FLOAT                                   =                                       ( 13.37 )
+STRING                                  =                                       '42'
 NANOSECONDS                             =                                       ( 1 )
 MICROSECONDS                            =                                       ( 1000 * NANOSECONDS )
 MILLISECONDS                            =                                       ( 1000 * MICROSECONDS )
@@ -11,142 +14,12 @@ SECONDS                                 =                                       
 MINUTES                                 =                                       ( 60 * SECONDS )
 HOURS                                   =                                       ( 60 * HOURS )
 
-__byte__                                =                                       ( 1 )
-__word__                                =                                       ( 2 )
-__dword__                               =                                       ( 4 )
-__qword__                               =                                       ( 8 )
-
-Macro __pad__                           size*,                                  mode:0
-  Local k
-  k                                     =                                       ((( $ + size - 1 ) and ( 0 - size )) - $ )
-  If ( mode = 0 )
-    While ( k )
-      tmp                               __random__
-      If      ( k >= __qword__ )
-        k                               =                                       ( k - __qword__ )
-        dq                              tmp
-      Else If ( k >= __dword__ )
-        k                               =                                       ( k - __dword__ )
-        dd                              ( tmp and 0xffffffff )
-      Else If ( k >= __word__ )
-        k                               =                                       ( k - __word__ )
-        dw                              ( tmp and 0xffff )
-      Else If ( k >= __byte__ )
-        k                               =                                       ( k - __byte__ )
-        db                              ( tmp and 0xff )
-      End If
-    End While
-  Else If ( mode = 1 )
-    Repeat ( k )
-      nop
-    End Repeat
-  Else If ( mode = 2 )
-    db ( k )                            dup ( 0 )
-  End If
-End Macro
 Macro enumerate                         value,                                  consts&
   Local k, item
   k                                     =                                       value
   Irp item, consts
     item                                =                                       k
     k                                   =                                       ( k + 1 )
-  End Irp
-End Macro
-
-Macro hb                                value&
-  Local item
-  Irp item, value
-    Repeat 2
-      char                              =                                       ( '0' + ((( item ) shr (  8 - ( % * 4 ))) and 0x0f ))
-      If ( char > '9' )
-        char                            =                                       ( char + 'a' - '9' - 1 )
-      End If
-      db                                char
-    End Repeat
-  End Irp
-End Macro
-Macro hw                                value&
-  Local item
-  Irp item, value
-    Repeat 4
-      char                              =                                       ( '0' + ((( item ) shr ( 16 - ( % * 4 ))) and 0x0f ))
-      If ( char > '9' )
-        char                            =                                       ( char + 'a' - '9' - 1 )
-      End If
-      db                                char
-    End Repeat
-  End Irp
-End Macro
-Macro hd                                value&
-  Local item
-  Irp item, value
-    Repeat 8
-      char                              =                                       ( '0' + ((( item ) shr ( 32 - ( % * 4 ))) and 0x0f ))
-      If ( char > '9' )
-        char                            =                                       ( char + 'a' - '9' - 1 )
-      End If
-      db                                char
-    End Repeat
-  End Irp
-End Macro
-Macro hq                                value&
-  Local item
-  Irp item, value
-    Repeat 16
-      char                              =                                       ( '0' + ((( item ) shr ( 64 - ( % * 4 ))) and 0x0f ))
-      If ( char > '9' )
-        char                            =                                       ( char + 'a' - '9' - 1 )
-      End If
-      db                                char
-    End Repeat
-  End Irp
-End Macro
-Macro hB                                value&
-  Local item
-  Irp item, value
-    Repeat 2
-      char                              =                                       ( '0' + ((( item ) shr (  8 - ( % * 4 ))) and 0x0f ))
-      If ( char > '9' )
-        char                            =                                       ( char + 'A' - '9' - 1 )
-      End If
-      db                                char
-    End Repeat
-  End Irp
-End Macro
-Macro hW                                value&
-  Local item
-  Irp item, value
-    Repeat 4
-      char                              =                                       ( '0' + ((( item ) shr ( 16 - ( % * 4 ))) and 0x0f ))
-      If ( char > '9' )
-        char                            =                                       ( char + 'A' - '9' - 1 )
-      End If
-      db                                char
-    End Repeat
-  End Irp
-End Macro
-Macro hD                                value&
-  Local item
-  Irp item, value
-    Repeat 8
-      char                              =                                       ( '0' + ((( item ) shr ( 32 - ( % * 4 ))) and 0x0f ))
-      If ( char > '9' )
-        char                            =                                       ( char + 'A' - '9' - 1 )
-      End If
-      db                                char
-    End Repeat
-  End Irp
-End Macro
-Macro hQ                                value&
-  Local item
-  Irp item, value
-    Repeat 16
-      char                              =                                       ( '0' + ((( item ) shr ( 64 - ( % * 4 ))) and 0x0f ))
-      If ( char > '9' )
-        char                            =                                       ( char + 'A' - '9' - 1 )
-      End If
-      db                                char
-    End Repeat
   End Irp
 End Macro
 
@@ -196,17 +69,6 @@ Macro fail                              function*,          message&
   Break
   Break
 End Macro
-Struc open@@file                        nameOfFile
-  Local lblInputFile, lenInputFile
-  Virtual                               At null
-    lblInputFile::
-      file                              nameOfFile
-    lenInputFile                        =                                       ( $ )
-  End Virtual
-  .lbl                                  equ                                     lblInputFile
-  .size                                 =                                       lenInputFile
-  .offs                                 =                                       null
-End Struc
 
 Macro comment
   Macro ?! line&
@@ -216,7 +78,89 @@ Macro comment
   End Macro
 End Macro
 
+Struc float2decimal                     value*,                                 precision:( 4 )
+  Local absValue, signValue, absPower, signPower, absReal
+  If      ( value = 0.0 )
+    absValue                            =                                       ( 0.0 )
+    Virtual                             At null
+      dq                                value
+      Load                              temp qword                              From null
+    End Virtual
+    If ( temp and 0x8000000000000000 )
+      signValue                         Equ                                     '-'
+    Else
+      signValue                         Equ                                     '+'
+    End If
+  Else If ( value < 0.0 )
+    absValue                            =                                       ( 0 - value )
+    signValue                           Equ                                     '-'
+  Else
+    absValue                            =                                       ( 0 + value )
+    signValue                           Equ                                     '+'
+  End If
+  absPower                              =                                       ( 0 )
+  If      ( absValue =   0.0 )
+    signPower                           Equ                                     ''
+  Else If ( absValue >= 10.0 )
+    While ( absValue >= 10.0 )
+      absValue                          =                                       ( absValue / 10.0 )
+      absPower                          =                                       ( absPower + 1 )
+    End While
+    signPower                           Equ                                     '+'
+  Else If ( absValue <  1.0 )
+    While ( absValue <  1.0 )
+      absValue                          =                                       ( absValue * 10.0 )
+      absPower                          =                                       ( absPower + 1 )
+    End While
+    signPower                           Equ                                     '-'
+  Else
+    signPower                           Equ                                     ''
+  End If
+  If      ( precision > 0 )
+    Virtual                             At null
+      db '.'
+      rb precision
+      db ''
+      temp                              =                                       ( absValue - ( trunc absValue ))
+      Repeat                            ( precision ),                          offs:( 1 )
+        temp                            =                                       ( temp * 10.0 )
+        Store                           byte ( '0' + ( trunc temp ))            At offs
+        temp                            =                                       ( temp - ( trunc temp ))
+      End Repeat
+      global                            =                                       temp
+      If ( temp >= 0.499999999999999999999999999999999 )
+        Repeat                          ( precision ),                          offs:( 0 )
+          Load                          temp byte                               From  ( precision - offs )
+          If ( temp = '9' )
+            temp                        =                                       '0'
+          Else
+            temp                        =                                       temp + 1
+          End If
+          Store                         byte temp                               At ( precision - offs )
+          If ( temp <> '0' )
+            Break
+          End If
+        End Repeat
+        If ( temp = '0' )
+          absValue                      =                                       ( absValue + 1 )
+        End If
+      End If
+      Load                              absReal ( precision + 1 )               From null
+    End Virtual
+  Else If ( precision > 0 )
+    fail 'float2decimal', 'precision must be a positive integer or null'
+  End If
+  Repeat                                1,                                      integerPart:( trunc absValue )
+    Repeat                              1,                                      powerPart:(         absPower )
+      .                                 Equ                                     signValue, `integerPart, string absReal, 'e', signPower, `powerPart
+    End Repeat
+  End Repeat
+End Struc
+
+
 Include 'include/crypto.flib'
-Include 'include/mememap.flib'
+Include 'include/data.flib'
 Include 'include/display.flib'
+Include 'include/files.flib'
+Include 'include/mememap.flib'
 Include 'include/random.flib'

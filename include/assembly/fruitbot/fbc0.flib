@@ -1,4 +1,3 @@
-Include 'include/assembly/fruitbot/opcodes.flib'
 fbc0@@version                           =                                       0xc0fb
 ;( arguments )
 ;{

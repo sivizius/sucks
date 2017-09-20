@@ -1,0 +1,87 @@
+Irp                                     < name,         opcode >, \
+                                        nop,            0x00, break,          0x01, ret,            0x2a, throw,          0x7a,
+                                        dup,            0x25, pop,            0x26,
+                                        add,            0x58, sub,            0x59, mul,            0x5a, div,            0x5b,
+                                        div.un,         0x5c, rem,            0x5d, rem.un,         0x5e, and,            0x5f,
+                                        or,             0x60, xor,            0x61, shl,            0x62, shr,            0x63,
+                                        shr.un,         0x64, neg,            0x65, not,            0x66,
+                                        ldnull,         0x14, ldlen,          0x83,
+                                        ldarg_0,        0x02, ldarg_1,        0x03, ldarg_2,        0x04, ldarg_3,        0x05,
+                                        ldloc_0,        0x06, ldloc_1,        0x07, ldloc_2,        0x08, ldloc_3,        0x09,
+                                        stloc_0,        0x0a, stloc_1,        0x0b, stloc_2,        0x0c, stloc_3,        0x0d,
+                                        ldind.i1,       0x46, ldind.i2,       0x48, ldind.i4,       0x4a, ldind.i8,       0x4c,
+                                        ldind.u1,       0x47, ldind.u2,       0x49, ldind.u4,       0x4b, ldind.u8,       0x4c,
+                                        ldind.i,        0x4d, ldind.r4,       0x4e, ldind.r8,       0x4f, ldind.ref,      0x50,
+                                        stind.i1,       0x52, stind.i2,       0x53, stind.i4,       0x54, stind.i8,       0x55,
+                                        stind.r4,       0x56, stind.r8,       0x57, stind.ref,      0x51,
+                                        conv.i1,        0x67, conv.i2,        0x68, conv.i4,        0x69, conv.i8,        0x6a,
+                                        conv.r4,        0x6b, conv.r8,        0x6c, conv.u4,        0x6d, conv.u8,        0x6e,
+                                        conv.ovf.i1.un, 0x82, conv.ovf.i2.un, 0x83, conv.ovf.i4.un, 0x84, conv.ovf.i8.un, 0x85,
+                                        conv.ovf.u1.un, 0x86, conv.ovf.u2.un, 0x87, conv.ovf.u4.un, 0x88, conv.ovf.u8.un, 0x89,
+                                        conv.ovf.i.un,  0x8a, conv.ovf.u.un,  0x8b,
+                                        
+  Macro name?
+    lister@@putInstruction              `name
+    assembly@@putInstruction
+    assembly@@putByte                   opcode
+  End Macro
+End Irp
+Irp                                     < name, base >, \
+  Macro name?                           number*
+    lister@@putInstruction              `name
+    assembly@@putInstruction
+  End Macro
+End Irp
+Macro ldc.i4?                           value*
+  If ( value eqtype NUMBER )
+    lister@@putInstruction              'ldc.i4'
+    assembly@@putInstruction
+    If      ( value = -1 )
+      assembly@@putByte                 0x15
+    Else If (( value >= 0 ) & ( value <= 8 ))
+      assembly@@putByte                 ( 0x16 + value )
+    Else If (( value >= -0x80 ) & ( value <= 0x7f ))
+      assembly@@putByte                 0x1f
+      assembly@@putByte                 value
+    Else If (( value >= -0x80000000 ) & ( value <= 0x7fffffff ))
+      assembly@@putByte                 0x20
+      assembly@@putDWord                value
+    Else
+      fail 'ldc.i4', 'value out of bonds'
+    End If
+  Else
+    fail 'ldc.i4', 'integer expected'
+  End If
+End Macro
+Macro ldc.i8?                           value*
+  If ( value eqtype NUMBER )
+    lister@@putInstruction              'ldc.i8'
+    assembly@@putInstruction
+    If (( value >= -0x8000000000000000 ) & ( value <= 0x7fffffffffffffff ))
+      assembly@@putByte                 0x21
+      assembly@@putQWord                value
+    End If
+  Else
+    fail 'ldc.i8', 'integer expected'
+  End If
+End Macro
+Macro ldc.r4?                           value*
+  If ( value eqtype FLOAT )
+    lister@@putInstruction              'ldc.r4'
+    assembly@@putInstruction
+    assembly@@putByte                   0x22
+    assembly@@putDWord                  value                                   ;this will hopefully fit, idk how to check
+  Else
+    fail 'ldc.r4', 'integer expected'
+  End If
+End Macro
+Macro ldc.r8?                           value*
+  If ( value eqtype FLOAT )
+    lister@@putInstruction              'ldc.r8'
+    assembly@@putInstruction
+    assembly@@putByte                   0x23
+    assembly@@putQWord                  value                                   ;this will hopefully fit, idk how to check
+  Else
+    fail 'ldc.r8', 'integer expected'
+  End If
+End Macro

@@ -1,0 +1,38 @@
+Struc files@@open                       nameOfFile*
+  Local lblInputFile, lenInputFile
+  Virtual                               At null
+    lblInputFile::
+      file                              nameOfFile
+    lenInputFile                        =                                       ( $ )
+  End Virtual
+  .lbl                                  Equ                                     lblInputFile
+  .size                                 =                                       lenInputFile
+  .offs                                 =                                       null
+End Struc
+Macro files@@seek                       theFile*,                               offs:( null )
+  If (( offs >= null ) & ( offs < theFile.size ))
+    theFile.offs                        =                                       ( offs )
+  Else
+    fail 'files@@seek', 'offset out of bonds'
+  End If
+End Macro
+Struc files@@read                       theFile*,                               length*
+  Local temp
+  If (( theFile.size - theFile.offs ) >= length )
+    Load                                temp length                             From theFile.lbl:( theFile.offs )
+    theFile.offs                        =                                       ( theFile.offs + length )
+    .                                   =                                       ( temp )
+  Else
+    fail 'files@@read', 'not enough bytes left to read'
+  End If
+End Struc
+Macro files@@read                       theFile*,                               length*,                                buffer*
+  Local temp
+  If (( theFile.size - theFile.offs ) >= length )
+    Load                                temp length                             From theFile.lbl:( theFile.offs )
+    theFile.offs                        =                                       ( theFile.offs + length )
+    Store                               length temp                             At buffer
+  Else
+    fail 'files@@read', 'not enough bytes left to read'
+  End If
+End Macro

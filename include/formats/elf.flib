@@ -17,12 +17,6 @@ elf@@flagReadable                       =                                       
 elf@@abiNone                            =                                       0x00
 elf@@abiSystemV                         =                                       0x00
 elf@@abiUnixGNU                         =                                       0x03
-;( code yapter )
-;{
-  Macro elf@@addCodeSpace               language*,                              function*
-    elf@@lstCode                        Equ                                     language function
-  End Macro
-;}
 Macro elf@@initFormat                   arguments&
   Local temp
   Local ptrEntry

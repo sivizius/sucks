@@ -1,0 +1,136 @@
+;( value as hexadecimal string )
+;{
+  ;( lower case [0-9a-f] )
+  ;{
+    Macro hb                            value&
+      Local item
+      Irp item, value
+        Repeat                          ( 2 * byte )
+          char                          =                                       ( '0' + ((( item ) shr (( 8 * byte ) - ( % * 4 ))) and 0x0f ))
+          If ( char > '9' )
+            char                        =                                       ( char + 'a' - '9' - 1 )
+          End If
+          db                            char
+        End Repeat
+      End Irp
+    End Macro
+    Macro hw                            value&
+      Local item
+      Irp item, value
+        Repeat                          ( 2 * word )
+          char                          =                                       ( '0' + ((( item ) shr (( 8 * word ) - ( % * 4 ))) and 0x0f ))
+          If ( char > '9' )
+            char                        =                                       ( char + 'a' - '9' - 1 )
+          End If
+          db                            char
+        End Repeat
+      End Irp
+    End Macro
+    Macro hd                            value&
+      Local item
+      Irp item, value
+        Repeat                          ( 2 * dword )
+          char                          =                                       ( '0' + ((( item ) shr (( 8 * dword ) - ( % * 4 ))) and 0x0f ))
+          If ( char > '9' )
+            char                        =                                       ( char + 'a' - '9' - 1 )
+          End If
+          db                            char
+        End Repeat
+      End Irp
+    End Macro
+    Macro hq                            value&
+      Local item
+      Irp item, value
+        Repeat                          ( 2 * qword )
+          char                          =                                       ( '0' + ((( item ) shr (( 8 * qword ) - ( % * 4 ))) and 0x0f ))
+          If ( char > '9' )
+            char                        =                                       ( char + 'a' - '9' - 1 )
+          End If
+          db                            char
+        End Repeat
+      End Irp
+    End Macro
+  ;}
+  ;( upper case [0-9A-F] )
+  ;{
+    Macro hB                            value&
+      Local item
+      Irp item, value
+        Repeat                          ( 2 * byte )
+          char                          =                                       ( '0' + ((( item ) shr (( 8 * byte ) - ( % * 4 ))) and 0x0f ))
+          If ( char > '9' )
+            char                        =                                       ( char + 'A' - '9' - 1 )
+          End If
+          db                            char
+        End Repeat
+      End Irp
+    End Macro
+    Macro hW                            value&
+      Local item
+      Irp item, value
+        Repeat                          ( 2 * word )
+          char                          =                                       ( '0' + ((( item ) shr (( 8 * word ) - ( % * 4 ))) and 0x0f ))
+          If ( char > '9' )
+            char                        =                                       ( char + 'A' - '9' - 1 )
+          End If
+          db                            char
+        End Repeat
+      End Irp
+    End Macro
+    Macro hD                            value&
+      Local item
+      Irp item, value
+        Repeat                          ( 2 * dword )
+          char                          =                                       ( '0' + ((( item ) shr (( 8 * dword ) - ( % * 4 ))) and 0x0f ))
+          If ( char > '9' )
+            char                        =                                       ( char + 'A' - '9' - 1 )
+          End If
+          db                            char
+        End Repeat
+      End Irp
+    End Macro
+    Macro hQ                            value&
+      Local item
+      Irp item, value
+        Repeat                          ( 2 * qword )
+          char                          =                                       ( '0' + ((( item ) shr (( 8 * qword ) - ( % * 4 ))) and 0x0f ))
+          If ( char > '9' )
+            char                        =                                       ( char + 'A' - '9' - 1 )
+          End If
+          db                            char
+        End Repeat
+      End Irp
+    End Macro
+  ;}
+;}
+;( padding )
+;{
+  Macro pad                             size*,                                  mode:( 0 )
+    Local k
+    k                                   =                                       ((( $ + size - 1 ) and ( 0 - size )) - $ )
+    If ( mode = 0 )
+      While ( k )
+        tmp                             random@@random
+        If      ( k >= qword )
+          k                             =                                       ( k - qword )
+          dq                            ( tmp and 0xffffffffffffffff )
+        Else If ( k >= dword )
+          k                             =                                       ( k - dword )
+          dd                            ( tmp and 0x00000000ffffffff )
+        Else If ( k >= word )
+          k                             =                                       ( k - word  )
+          dw                            ( tmp and 0x000000000000ffff )
+        Else If ( k >= byte )
+          k                             =                                       ( k - byte  )
+          db                            ( tmp and 0x00000000000000ff )
+        End If
+      End While
+    Else If (( mode = 1 ) & ( defined nop ))
+      Repeat ( k )
+        nop
+      End Repeat
+    Else
+      dbx ( k ):                          null
+    End If
+  End Macro
+;}
