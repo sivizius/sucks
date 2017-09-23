@@ -561,6 +561,9 @@ format uf4
           movq                          mm1,                                    mm2
           movq                          qword [ eax ],                          mm3
         ;}
+        Repeat 1000
+          mov eax, ecx
+        End Repeat
       End Repeat
     ;}
     ;( negative test, this should not work )

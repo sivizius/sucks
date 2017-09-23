@@ -1,0 +1,25 @@
+Macro crypto@@encCipherBlockChaining    lblPlainText*,      lenPlainText*,      lenBlock*,          lblInitVector*,     theRest&
+  Local lblBuffer, plain, temp, algorithm
+  Virtual                               At null
+    lblBuffer::
+      rb lenBlock
+      db ''
+  End Virtual
+  algorithm                             crypto@@findCrypto                      theRest
+  displayOnNewLine '<encrypt:', algorithm.name, '>'
+  displayOnNewLine '{'
+  indentMore
+  Load                                  temp lenBlock                           From lblInitVector:( null )
+  Repeat                                ( lenPlainText / lenBlock ),            offs:( null )
+    Load                                plain lenBlock                          From lblPlainText:( offs * lenBlock )
+    Store                               lenBlock ( plain xor temp )             At lblBuffer:( null )
+    algorithm.encryptor                 lblBuffer,                              lenBlock
+    Load                                temp lenBlock                           From ( $ - lenBlock )
+  End Repeat
+  indentLess
+  displayOnNewLine '}'
+End Macro
+Macro crypto@@decCipherBlockChaining    lblCipherText*,     lenCipherText*,     lblInitVector*,     lenInitVector*,     theRest&
+  
+End Macro
+crypto@@addCrypto                       cbc,                crypto@@encCipherBlockChaining,         crypto@@decCipherBlockChaining

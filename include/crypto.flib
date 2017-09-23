@@ -1,57 +1,61 @@
-Macro crypto@@addCrypto                 algorithm*,                             alignment*,                             encrypt*,                               decrypt*
-  crypto@@lstCryptos                    Equ                                     algorithm, alignment, encrypt, decrypt
+Macro crypto@@addCrypto                 algorithm*,                             encrypt*,                               decrypt*
+  crypto@@lstCryptos                    Equ                                     algorithm, encrypt, decrypt
 End Macro
-Macro encrypt                           someArguments&
-  Local foundAlgorithm, theFinal, lblPlaintext, lenPlaintext, padding
+Struc crypto@@findCrypto                someArguments&
+  Local foundAlgorithm
   foundAlgorithm                        =                                       false
   Match                                 theAlgorithm theRest,                   someArguments
     Irpv                                item,                                   crypto@@lstCryptos
-      Match                             algorithm =, alignment =, encrypt =, decrypt,                                   item
-        Match                           `algorithm,                             `theAlgorithm
-          displayOnNewLine '<encrypt:', `theAlgorithm, '>'
-          displayOnNewLine '{'
-          indentMore
-          Macro theFinal
-            encrypt                     lblPlaintext,                           lenPlaintext,                           theRest
+      Match                             algorithm =, encrypt =, decrypt,        item
+        If ( `algorithm Eq `theAlgorithm )
+          .name                         Equ                                     `algorithm
+          Macro .encryptor              lblPlainText*,                          lenPlainText*
+            encrypt                     lblPlainText,                           lenPlainText,                           theRest
+          End Macro
+          Macro .decryptor              lblCipherText*,                         lenCipherText*
+            decrypt                     lblCipherText,                          lenCipherText,                          theRest
           End Macro
           foundAlgorithm                =                                       true
-          padding                       =                                       ( alignment )
           Break
-        End Match
+        End If
       End Match
     End Irpv
     If ( foundAlgorithm = false )
-      fail 'encryption', 'unknown algorithm »', `theAlgorithm, '«'
+      fail 'crypto@@findCrypto', 'unknown algorithm »', `theAlgorithm, '«'
     End If
   Else Match                            theAlgorithm,                           someArguments
     Irpv                                item,                                   crypto@@lstCryptos
-      Match                             algorithm =, alignment =, encrypt =, decrypt,                                   item
-        Match                           `algorithm,                             `theAlgorithm
-          displayOnNewLine '<encrypt:', `theAlgorithm, '>'
-          displayOnNewLine '{'
-          indentMore
-          Macro theFinal
-            ;there should not be any encryption without arguments, i.e. a key, the block cipher mode of operation, initalisation vector, etc.; well, perhaps ROT13
-            encrypt                     lblPlaintext,                           lenPlaintext
+      Match                             algorithm =, encrypt =, decrypt,        item
+        If ( `algorithm Eq `theAlgorithm )
+          .name                         Equ                                     `algorithm
+          Macro .encryptor              lblPlainText*,                          lenPlainText*
+            encrypt                     lblPlainText,                           lenPlainText
+          End Macro
+          Macro .decryptor              lblCipherText*,                         lenCipherText*
+            decrypt                     lblCipherText,                          lenCipherText
           End Macro
           foundAlgorithm                =                                       true
-          padding                       =                                       ( alignment )
           Break
-        End Match
+        End If
       End Match
     End Irpv
     If ( foundAlgorithm = false )
-      fail 'encryption', 'unknown algorithm »', `theAlgorithm, '«'
+      fail 'crypto@@findCrypto', 'unknown algorithm »', `theAlgorithm, '«'
     End If
   Else
-    fail 'encryption', 'cannot match'
+    fail 'crypto@@findCrypto', 'cannot match'
   End Match
+End Struc
+Macro encrypt                           someArguments&
+  Local temp, lblPlaintext, lenPlaintext
+  temp                                  crypto@@findCrypto                      someArguments
+  displayOnNewLine '<encrypt:', temp.name, '>'
+  displayOnNewLine '{'
+  indentMore
   Macro end?.encrypt
-      rb                                ( padding - (( $ - 1 ) mod padding ) - 1 )
-      db                                ''
       lenPlaintext                      =                                       ( $ )
     End Virtual
-    theFinal
+    temp.encryptor                      lblPlaintext,                           lenPlaintext
     indentLess
     displayOnNewLine '}'
     Purge end?.encrypt
@@ -61,5 +65,6 @@ Macro encrypt                           someArguments&
 End Macro
 ;( some algorithms )
 ;{
+  Include 'crypto/blockmodes.flib'
   Include 'crypto/aes.flib'
 ;}

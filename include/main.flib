@@ -156,10 +156,19 @@ Struc float2decimal                     value*,                                 
     End Repeat
   End Repeat
 End Struc
-
+Macro text
+  Macro ?! line&
+    If ( `line = 'end text' )
+      Purge ?
+    Else
+      db `line
+    End If
+  End Macro
+End Macro
 
 Include 'include/main/data.flib'
 Include 'include/main/display.flib'
-;Include 'include/main/files.flib'
+Include 'include/main/files.flib'
 Include 'include/main/mememap.flib'
 Include 'include/main/random.flib'
+Include 'include/crypto.flib'

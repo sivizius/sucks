@@ -23,6 +23,7 @@
     yapters@@tFinal                     yapters@@addUnlistedYapterType
     yapters@@tStrings                   yapters@@addUnlistedYapterType
     yapters@@tComment                   yapters@@addUnlistedYapterType
+    yapters@@tData                      yapters@@addUnlistedYapterType
     yapters@@tBytecode                  yapters@@addUnlistedYapterType
     ;:  ---
     yapters@@tInvalidTypes              =                                       65536                                   ;and above
@@ -147,6 +148,22 @@ Macro uf4@@initFormat                   ignore&
       End If
     End Struc
   ;}
+  Macro data
+    Local theData, theResv
+    Macro end?.data!
+      theResv                           format@@endSpace
+      theData                           yapters@@endYapter
+      indentLess
+      displayOnNewLine '}'
+      Purge end?.data
+    End Macro
+    yapters@@newYapter                  yapters@@tData,                         null,               null, \
+                                        theResv.resv,                           theData.size,       theData.base
+    format@@newSpace
+    displayOnNewLine '<data>'
+    displayOnNewLine '{'
+    indentMore
+  End Macro
   ;( code pseudo-yapter )
   ;{
     ;>  code language
@@ -181,7 +198,7 @@ Macro uf4@@initFormat                   ignore&
       End Match
       Macro end?.code!
         assembly@@finaliser
-        end listing
+        ;end listing
         theMain                         format@@endSpace
         theCode                         yapters@@endYapter
         theStrings                      putSymbols
@@ -193,7 +210,8 @@ Macro uf4@@initFormat                   ignore&
       yapters@@newYapter                yapters@@tBytecode,                     info.uf4,           theStrings, \
                                         ( theMain.offs - theCode.offs ),        theCode.size,       theCode.base
       format@@newSpace
-      listing
+      ;( listing is very slow, do not enable, unless you really need to, e.g. debugging the instructionsetmacros )
+      ;listing
     End Macro
   ;}
   Macro uf4@@stopFormat

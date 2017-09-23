@@ -1,8 +1,4 @@
-Virtual                                 At null
-  aes@@rcon::
-  dd 0x01000000, 0x02000000, 0x04000000, 0x08000000, 0x10000000, 0x20000000, 0x40000000, 0x80000000, 0x1B000000, 0x36000000
-End Virtual
-Include 'include/crypto/aes/encTables.flib'
+Include 'include/crypto/aes/tables.flib'
 Struc aes@@TE0                          count*
   Local temp
   Load                                  temp dword                              From aes@@lblTE0:( dword * count )
@@ -25,7 +21,32 @@ Struc aes@@TE3                          count*
 End Struc
 Struc aes@@TE4                          count*
   Local temp
-  Load                                  temp dword                              From aes@@lblTE4:( dword * count )
+  Load                                  temp byte                               From aes@@lblTE4:( count )
+  .                                     =                                       temp
+End Struc
+Struc aes@@TD0                          count*
+  Local temp
+  Load                                  temp dword                              From aes@@lblTD0:( dword * count )
+  .                                     =                                       temp
+End Struc
+Struc aes@@TD1                          count*
+  Local temp
+  Load                                  temp dword                              From aes@@lblTD1:( dword * count )
+  .                                     =                                       temp
+End Struc
+Struc aes@@TD2                          count*
+  Local temp
+  Load                                  temp dword                              From aes@@lblTD2:( dword * count )
+  .                                     =                                       temp
+End Struc
+Struc aes@@TD3                          count*
+  Local temp
+  Load                                  temp dword                              From aes@@lblTD3:( dword * count )
+  .                                     =                                       temp
+End Struc
+Struc aes@@TD4                          count*
+  Local temp
+  Load                                  temp byte                               From aes@@lblTD4:( count )
   .                                     =                                       temp
 End Struc
 
@@ -35,28 +56,32 @@ Struc aes@@encryptionKey                key*,                                   
   Local lblRoundKeys
   Virtual                               At null
     lblRoundKeys::
-    Load                                length temp                             From key
+    Load                                temp length                             From key
     dbx ( length ):                     temp
     If      ( length = 16 )
       offs                              =                                       null
+      Load                              temp dword                              From ( 3 * dword )
       Repeat                            10,                                     round:( null )
-        Load                            line dword                              From ( offs + 0 )
-        Load                            temp dword                              From ( offs + 3 )
-        t0                              aes@@TE4                                (( temp shr 16 ) and 0xff )
+        t0                              aes@@TE4                                (( temp        ) and 0xff )
         t1                              aes@@TE4                                (( temp shr  8 ) and 0xff )
-        t2                              aes@@TE4                                (( temp        ) and 0xff )
-        t3                              aes@@TE4                                (( temp shr 24 ) and 0xff )
-        Load                            temp dword                              From aes@@rcon:( round )
-        dd                              ( line xor ( t0 and 0xff000000 ) xor ( t1 and 0x00ff0000 ) xor ( t2 and 0x0000ff00 ) xor ( t3 and 0x000000ff ) xor temp )
-        Load                            line dword                              From ( offs + 1 )
-        Load                            temp dword                              From ( offs + 4 )
-        dd                              ( line xor temp )
-        Load                            line dword                              From ( offs + 2 )
-        Load                            temp dword                              From ( offs + 5 )
-        dd                              ( line xor temp )
-        Load                            line dword                              From ( offs + 3 )
-        Load                            temp dword                              From ( offs + 6 )
-        dd                              ( line xor temp )
+        t2                              aes@@TE4                                (( temp shr 16 ) and 0xff )
+        t3                              aes@@TE4                                (( temp shr 24 )          )
+        t0                              =                                       ( t0 shl 24 )
+        t2                              =                                       ( t2 shl  8 )
+        t3                              =                                       ( t3 shl 16 )
+        Load                            line dword                              From aes@@rcon:( round * dword )
+        Load                            temp dword                              From ( offs + 0 )
+        temp                            =                                       ( t0 xor t3 xor t2 xor t1 xor line xor temp )
+        dd                              temp
+        Load                            line dword                              From ( offs + 1 * dword )
+        temp                            =                                       ( line xor temp )
+        dd                              temp
+        Load                            line dword                              From ( offs + 2 * dword )
+        temp                            =                                       ( line xor temp )
+        dd                              temp
+        Load                            line dword                              From ( offs + 3 * dword )
+        temp                            =                                       ( line xor temp )
+        dd                              temp
         offs                            =                                       ( offs + 16 )
       End Repeat
     Else If ( length = 24 )
@@ -68,63 +93,65 @@ Struc aes@@encryptionKey                key*,                                   
     mememap@@writeBuffer                bufRoundKeys,                           lblRoundKeys:( null ),                  ( $ )
     .encType                            Equ                                     'aes128enc'
     .encRoundKeys                       =                                       bufRoundKeys
-    .size                               =                                       length
+    .encSize                            =                                       length
   End Virtual
 End Struc
-Struc aes@@encryptBlock                 block*,                                 key*
+Macro crypto@@encAES                    lblPlainText*,                          lenPlainText*,                          key*
   ;assume, that block-size is 128bit
   Local rounds, temp, line
   Local roundKey, lookup, lastRound
   Local t0, t1, t2, t3
   Local s0, s1, s2, s3
-  If      ( key.size = 16 )
+  If      (( key.encSize = 16 ) & ( key.encType eq 'aes128enc' ))
     rounds                              =                                       5
-  Else If ( key.size = 24 )
+  Else If (( key.encSize = 24 ) & ( key.encType eq 'aes192enc' ))
     rounds                              =                                       6
-  Else If ( key.size = 32 )
+  Else If (( key.encSize = 32 ) & ( key.encType eq 'aes256enc' ))
     rounds                              =                                       7
   Else
     fail 'aes@@encryptBlock', 'invalid length of key'
   End If
   Struc roundKey                        line*,                                  count*
-  Local temp
+    Local temp
     temp                                mememap@@readValue                      ( key.encRoundKeys + dword * count ),   dword
     .                                   =                                       ( line xor temp )
   End Struc
   Struc lookup                          s0*,      s1*,      s2*,      s3*
     Local t0, t1, t2, t3
-    t0                                  aes@@TE0                                (( s0 shr 24 ) and 0xff )
-    t1                                  aes@@TE1                                (( s1 shr 16 ) and 0xff )
-    t2                                  aes@@TE2                                (( s2 shr  8 ) and 0xff )
-    t3                                  aes@@TE3                                (( s3        ) and 0xff )
+    t0                                  aes@@TE0                                (( s0        ) and 0xff )
+    t1                                  aes@@TE1                                (( s1 shr  8 ) and 0xff )
+    t2                                  aes@@TE2                                (( s2 shr 16 ) and 0xff )
+    t3                                  aes@@TE3                                (( s3 shr 24 ) and 0xff )
     .                                   =                                       ( t0 xor t1 xor t2 xor t3 )
   End Struc
   Struc lastRound                       t0*,      t1*,      t2*,      t3*
     Local s0, s1, s2, s3
-    s0                                  aes@@TE4                                (( t0 shr 24 ) and 0xff )
-    s1                                  aes@@TE4                                (( t1 shr 16 ) and 0xff )
-    s2                                  aes@@TE4                                (( t2 shr  8 ) and 0xff )
-    s3                                  aes@@TE4                                (( t3        ) and 0xff )
-    .                                   =                                       (( s0 and 0xff000000 ) xor ( s1 and 0x00ff0000 ) xor ( s2 and 0x0000ff00 ) xor ( s3 and 0x000000ff ))
+    s0                                  aes@@TE4                                (( t0        ) and 0xff )
+    s1                                  aes@@TE4                                (( t1 shr  8 ) and 0xff )
+    s2                                  aes@@TE4                                (( t2 shr 16 ) and 0xff )
+    s3                                  aes@@TE4                                (( t3 shr 24 ) and 0xff )
+    s1                                  =                                       ( s1 shl  8 )
+    s2                                  =                                       ( s2 shl 16 )
+    s3                                  =                                       ( s3 shl 24 )
+    .                                   =                                       ( s0 xor s1 xor s2 xor s3 )
   End Struc
-  Virtual                               At null
-    Load                                temp 16                                 From block
-    dbx ( 16 ):                         temp
-    Load                                s0  dword                               From ( 0 )
-    Load                                s1  dword                               From ( 1 )
-    Load                                s2  dword                               From ( 2 )
-    Load                                s3  dword                               From ( 3 )
+  If ( lenPlainText and 0x07 )
+    fail 'aes@@encryptBlock', 'input must be aligned to block-size'
+  End If
+  Repeat                                ( lenPlainText / 16 ),                  offs:( null )
+    Load                                s0  dword                               From lblPlainText:( 16 * offs + 0 * dword )
+    Load                                s1  dword                               From lblPlainText:( 16 * offs + 1 * dword )
+    Load                                s2  dword                               From lblPlainText:( 16 * offs + 2 * dword )
+    Load                                s3  dword                               From lblPlainText:( 16 * offs + 3 * dword )
     Repeat                              rounds,                                 round:( 0 )
       s0                                roundKey                                s0,                                     ( 8 * round + 0 )
       s1                                roundKey                                s1,                                     ( 8 * round + 1 )
       s2                                roundKey                                s2,                                     ( 8 * round + 2 )
       s3                                roundKey                                s3,                                     ( 8 * round + 3 )
-
       t0                                lookup                                  s0,       s1,       s2,       s3
       t1                                lookup                                  s1,       s2,       s3,       s0
       t2                                lookup                                  s2,       s3,       s0,       s1
       t3                                lookup                                  s3,       s0,       s1,       s2
-
       t0                                roundKey                                t0,                                     ( 8 * round + 4 )
       t1                                roundKey                                t1,                                     ( 8 * round + 5 )
       t2                                roundKey                                t2,                                     ( 8 * round + 6 )
@@ -145,6 +172,10 @@ Struc aes@@encryptBlock                 block*,                                 
     s1                                  roundKey                                s1,                                     ( 8 * rounds + 1 )
     s2                                  roundKey                                s2,                                     ( 8 * rounds + 2 )
     s3                                  roundKey                                s3,                                     ( 8 * rounds + 3 )
-  End Virtual
-  dd                                    s0,       s1,       s2,       s3
-End Struc
+    dd                                  s0,       s1,       s2,       s3
+  End Repeat
+End Macro
+Macro crypto@@decAES ignore&
+  fail 'crypto@@decAES', 'not implemented yet'
+End Macro
+crypto@@addCrypto                       aes,                                    crypto@@encAES,                         crypto@@decAES

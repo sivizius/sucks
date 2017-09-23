@@ -45,7 +45,7 @@ I tried and try to follow the following conventions:
   Sometimes multiple of 10 plus 1 (11, 21, 31, ..., 10·n+1) are more rational.
 * Something about remarks, comments and notes:
   * Also use the British English spelling.
-    * Never use short forms like »can't«, »it's«, etc.; always use the long form i.e. »cannot«, »it is«, but 
+    * Never use short forms like »can't«, »it's«, etc.; always use the long form i.e. »cannot«, »it is«, but »etc.« and »e.g.« is fine.
     * Qutation marks are Guillemets: »›‹«.
     * I probably use ugly punctuation, because I am used to German punctuation.
     * If you know British English better than me, do not hesitate to correct me.
