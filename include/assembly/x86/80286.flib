@@ -1,8 +1,9 @@
-Include 'include/assembly/80186.flib'
+Include 'include/assembly/x86/80186.flib'
 x86@@isaVersion                         =                                       x86@@i80286
 use16
 Purge cts?, sgdt?, sidt?, lgdt?, lidt?, sldt?, str?, lldt?, ltr?, verr?, verw?, smsw?, lmsw?, lar?, lsl?, arpl?, hcf?
 Macro cts?
+  lister@@putInstruction                'cts'
   x86@@putOpcode                        0x0f, 0x06
 End Macro
 Irp                                     < name, base >, \

@@ -1,0 +1,8 @@
+Virtual                                 At null
+  aes@@lblTD4::
+End Virtual
+Struc aes@@TD4                          count*
+  Local temp
+  Load                                  temp dword                              From aes@@lblTD4:( dword * count )
+  .                                     =                                       temp
+End Struc

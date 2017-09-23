@@ -1,4 +1,3 @@
-Include 'include/assembly.flib'
 ;( yapter-types )
 ;{
   yapters@@lenOfOneYapter               =                                       32
@@ -191,14 +190,14 @@ Macro uf4@@initFormat                   ignore&
         Purge assembly@@finaliser
         Purge end?.code, temp.init
       End Macro
-      yapters@@newYapter                yapters@@tBytecode,                     info.machine,       theStrings, \
+      yapters@@newYapter                yapters@@tBytecode,                     info.uf4,           theStrings, \
                                         ( theMain.offs - theCode.offs ),        theCode.size,       theCode.base
       format@@newSpace
       listing
     End Macro
   ;}
   Macro uf4@@stopFormat
-    Local theYapter, count, offs, temp
+    Local theYapter, count, offs, temp, length
     yapters@@theFinal                   yapters@@addYapter                      null
     yapters@@numYapters                 =                                       ( yapters@@ctrYapters )
     .yapters@@numYapters                =                                       ( yapters@@ctrYapters )
@@ -233,21 +232,21 @@ Macro uf4@@initFormat                   ignore&
       Load                              temp qword                              From format@@lblOutput:( offs + 0x08 )
       displayHexQWord temp
       display ' 0x'
-      Load                              temp qword                              From format@@lblOutput:( offs + 0x10 )
-      displayHexQWord temp
+      Load                              length qword                            From format@@lblOutput:( offs + 0x10 )
+      displayHexQWord length
       display ' 0x'
       Load                              temp qword                              From format@@lblOutput:( offs + 0x18 )
       displayHexQWord temp
+      temp                              =                                       ( temp + yapters@@theFinal.offs + yapters@@lenOfOneYapter )
       display ' (0x'
-      displayHexQWord ( temp + yapters@@theFinal.offs + yapters@@lenOfOneYapter )
-      display ') – dd if=', theOutput, ' of=build/0x'
-      displayHexDWord count
-      display '.bin bs=1 count='
-      Load                              temp qword                              From format@@lblOutput:( offs + 0x10 )
-      displayDecimal temp
-      display ' skip='
-      Load                              temp qword                              From format@@lblOutput:( offs + 0x18 )
-      displayDecimal ( temp + yapters@@theFinal.offs + yapters@@lenOfOneYapter )
+      displayHexQWord temp
+      display ')'
+      If (( length ) & ( temp >= 0 ) & (( temp + length ) < format@@lenOutput ) & false )
+        Load                            temp length                             From format@@lblOutput:( temp )
+        Virtual                         At null                                 As `count
+          dbx ( length ):               temp
+        End Virtual
+      End If
     End Repeat
     yapters@@flushSymbols
     yapters@@lenSymbols                 =                                       yapters@@maxSymbols

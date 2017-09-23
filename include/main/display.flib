@@ -92,47 +92,48 @@ Macro displayDecimal                    value*
   End Repeat
 End Macro
 
-Macro display                           string&
+Macro _display                           strings&
   Local temp, char
-  Irpv                                  item,                                   string
+  Irp                                   item,                                   strings
     Match                               length  value,                          item
-      If      ( length = decimal )
-        If      ( value eqtype NUMBER )
-          Repeat                        1,                                      temp:( value )
-            display                     `temp
-          End Repeat
-        Else If ( value eqtype FLOAT  )
-          temp                          float2decimal                           value
-          display                       temp
-        Else
-          fail 'display', 'number or float expected'
-        End If
-      Else If ( length > 0 )
-        display                         '0x'
-        Repeat ( 2 * length )           ;lower case hexadecimal values
-          char                          =                                       ( '0' + ((( value ) shr (( 8 * length ) - ( % * 4 ))) and 0x0f ))
-          If ( char > '9' )
-            char                        =                                       ( char + 'a' - '9' - 1 )
-          End If
-          display                       char
-        End Repeat
-      Else If ( length < 0 )            ;upper case hexadecimal values
-        display                         '0x'
-        Repeat ( -2 * length )
-          char                          =                                       ( '0' + ((( value ) shr (( -8 * length ) - ( % * 4 ))) and 0x0f ))
-          If ( char > '9' )
-            char                        =                                       ( char + 'A' - '9' - 1 )
-          End If
-          display                       char
-        End Repeat
-      End If
+;      If      ( length = decimal )
+;        If      ( value eqtype NUMBER )
+;          Repeat                        1,                                      temp:( value )
+;            Display                     `temp
+;          End Repeat
+;        Else If ( value eqtype FLOAT  )
+;          temp                          float2decimal                           value
+;          Display                       temp
+;        Else
+;          fail 'display', 'number or float expected'
+;        End If
+;      Else If ( length > 0 )
+;        Display                         '0x'
+;        Repeat ( 2 * length )           ;lower case hexadecimal values
+;          char                          =                                       ( '0' + ((( value ) shr (( 8 * length ) - ( % * 4 ))) and 0x0f ))
+;          If ( char > '9' )
+;            char                        =                                       ( char + 'a' - '9' - 1 )
+;          End If
+;          Display                       char
+;        End Repeat
+;      Else If ( length < 0 )            ;upper case hexadecimal values
+;        Display                         '0x'
+;        Repeat ( -2 * length )
+;          char                          =                                       ( '0' + ((( value ) shr (( -8 * length ) - ( % * 4 ))) and 0x0f ))
+;          If ( char > '9' )
+;            char                        =                                       ( char + 'A' - '9' - 1 )
+;          End If
+;          Display                       char
+;        End Repeat
+;      End If
     Else
-      If ( string eqtype FLOAT )
-        temp                            float2decimal                           string
-        display                         temp
-      Else
-        display                         string
-      End If
+;      If ( item eqtype FLOAT )
+;        temp                            float2decimal                           item
+;        Display                         temp
+;      Else
+        Display                         item
+;      End If
     End Match
-  End Irpv
+  End Irp
 End Macro
+

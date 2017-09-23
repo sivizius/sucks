@@ -1,4 +1,4 @@
-Include 'include/assembly/80386.flib'
+Include 'include/assembly/x86/80386.flib'
 x86@@isaVersion                         =                                       x86@@i80486
 use32
 Purge bswap?, xadd?, cmpxchg?, cpuid?, invd?, wbinvd?, rsm?, invlpg?

@@ -930,42 +930,45 @@ End Macro
       x86@@killMySelf
     End Macro
     Include 'include/assembly/x86/8086.flib'
-    .machine                            =                                       x86@@isaVersion
+    .uf4                                =                                       x86@@isaVersion
   End Struc
   Struc assembly@@80186                 ignore&
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
     Include 'include/assembly/x86/80186.flib'
-    .machine                            =                                       x86@@isaVersion
+    .uf4                                =                                       x86@@isaVersion
   End Struc
   Struc assembly@@80286                 ignore&
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
     Include 'include/assembly/x86/80286.flib'
-    .machine                            =                                       x86@@isaVersion
+    .uf4                                =                                       x86@@isaVersion
   End Struc
   Struc assembly@@80386                 ignore&
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
     Include 'include/assembly/x86/80386.flib'
-    .machine                            =                                       x86@@isaVersion
+    .uf4                                =                                       x86@@isaVersion
+    .elf                                =                                       elf@@isa386
   End Struc
   Struc assembly@@80486                 ignore&
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
     Include 'include/assembly/x86/80486.flib'
-    .machine                            =                                       x86@@isaVersion
+    .uf4                                =                                       x86@@isaVersion
+    .elf                                =                                       elf@@isa386
   End Struc
   Struc assembly@@pentium               ignore&
     Macro assembly@@finaliser
       x86@@killMySelf
     End Macro
     Include 'include/assembly/x86/pentium.flib'
-    .machine                            =                                       x86@@isaVersion
+    .uf4                                =                                       x86@@isaVersion
+    .elf                                =                                       elf@@isa386
   End Struc
   assembly@@addInstructionSet           8086,                                   assembly@@8086
   assembly@@addInstructionSet           80186,                                  assembly@@80186

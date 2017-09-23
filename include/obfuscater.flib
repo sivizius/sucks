@@ -1,0 +1,16 @@
+;( obfustcator configuration )
+;{
+  ;:flags may be ignored. only applied if possible. override optimasation.
+  obfuscator@@randomiseOpcodes          =                                       false               ;e.g. add r1 <- r2 = add r2 -> r1 (x86, different direction bit), xor r1, r1 = sub r1, r1 = ….
+  obfuscator@@randomisePrefixes         =                                       false               ;randomise order of prefixes
+  obfuscator@@randomiseOpcodeSize       =                                       false               ;longer opcodes, looks like compiled by hand, unnecessary prefixes, higher length of immediat values.
+  obfuscator@@randomiseStructures       =                                       false               ;randomise order of fields in structures, except api.
+  obfuscator@@randomiseFunctions        =                                       false               ;randomise order of functions, this may significantly increase the time of compilation.
+  obfuscator@@randomiseRegister         =                                       false               ;randomise use of register.
+  obfuscator@@randomiseExecution        =                                       false               ;randomise order of execution of independent instructions.
+  obfuscator@@randomisePadding          =                                       false               ;random bytes for padding of data and random opcodes for padding of code.
+  obfuscator@@codeObfuscation           =                                       false               ;extra code, code looks like written by an idiot. increases execution time.
+  obfuscator@@extraData                 =                                       false               ;extra, unused data. always true, if obfuscator@@codeObfuscation is true.
+  obfuscator@@encryption                =                                       null                ;encrypt everything and decrypt at runtime.
+  obfuscator@@probabilisticExecution    =                                       false               ;presumably it will work, but you cannot be sure. e.g. if (random()) { /* usually taken */ }
+;}

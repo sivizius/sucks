@@ -1,22 +1,58 @@
-elf@@typeRelocatable                    =                                       1
-elf@@typeExecutable                     =                                       2
-elf@@typeShared                         =                                       3
-elf@@typeCore                           =                                       4
-elf@@segmNull                           =                                       0x00
-elf@@segmLoad                           =                                       0x01
-elf@@segmDynamic                        =                                       0x02
-elf@@segmInterpreter                    =                                       0x03
-elf@@segmNote                           =                                       0x04
-elf@@segmSHLIB                          =                                       0x05
-elf@@segmProgramHeader                  =                                       0x06
-elf@@segmGNUehFrame                     =                                       0x6474e550
-elf@@segmGNUstack                       =                                       0x6474e551
-elf@@flagExecutable                     =                                       0x01
-elf@@flagWriteable                      =                                       0x02
-elf@@flagReadable                       =                                       0x04
-elf@@abiNone                            =                                       0x00
-elf@@abiSystemV                         =                                       0x00
-elf@@abiUnixGNU                         =                                       0x03
+;( elf type )
+;{
+  elf@@typeRelocatable                  =                                       1
+  elf@@typeExecutable                   =                                       2
+  elf@@typeShared                       =                                       3
+  elf@@typeCore                         =                                       4
+;}
+;( segment types )
+;{
+  elf@@segmNull                         =                                       0x00
+  elf@@segmLoad                         =                                       0x01
+  elf@@segmDynamic                      =                                       0x02
+  elf@@segmInterpreter                  =                                       0x03
+  elf@@segmNote                         =                                       0x04
+  elf@@segmSHLIB                        =                                       0x05
+  elf@@segmProgramHeader                =                                       0x06
+  elf@@segmGNUehFrame                   =                                       0x6474e550
+  elf@@segmGNUstack                     =                                       0x6474e551
+;}
+;( segment flags )
+;{
+  elf@@flagExecutable                   =                                       0x01
+  elf@@flagWriteable                    =                                       0x02
+  elf@@flagReadable                     =                                       0x04
+;}
+;( abi )
+;{
+  elf@@abiNone                          =                                       0x00
+  elf@@abiSystemV                       =                                       0x00
+  elf@@abiUnixGNU                       =                                       0x03
+;}
+;( isa )
+;{
+  elf@@isaNone                          =                                       0x00
+  elf@@isaM32                           =                                       0x01
+  elf@@isaSPARC                         =                                       0x02
+  elf@@isa386                           =                                       0x03
+  elf@@isa68K                           =                                       0x04
+  elf@@isa88K                           =                                       0x05
+  elf@@isaIAMCU                         =                                       0x06
+  elf@@isa860                           =                                       0x07
+  elf@@isaMIPS                          =                                       0x08
+  elf@@isaS370                          =                                       0x09
+  elf@@isaMIPS_RS3_LE                   =                                       0x0a
+  elf@@isaPARISC                        =                                       0x0f
+  elf@@isaVPP500                        =                                       0x11
+  elf@@isaSPARC32Plus                   =                                       0x12
+  elf@@isa960                           =                                       0x13
+  elf@@isaPowerPC                       =                                       0x14
+  elf@@isaPowerPC64                     =                                       0x15
+  elf@@isaS390                          =                                       0x16
+  elf@@isaSPU                           =                                       0x17
+  ;have fun: http://www.sco.com/developers/gabi/latest/ch4.eheader.html
+  ;elf@@isa                       =                                       0x
+;}
 Macro elf@@initFormat                   arguments&
   Local temp
   Local ptrEntry

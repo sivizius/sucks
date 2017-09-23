@@ -1,0 +1,65 @@
+Macro crypto@@addCrypto                 algorithm*,                             alignment*,                             encrypt*,                               decrypt*
+  crypto@@lstCryptos                    Equ                                     algorithm, alignment, encrypt, decrypt
+End Macro
+Macro encrypt                           someArguments&
+  Local foundAlgorithm, theFinal, lblPlaintext, lenPlaintext, padding
+  foundAlgorithm                        =                                       false
+  Match                                 theAlgorithm theRest,                   someArguments
+    Irpv                                item,                                   crypto@@lstCryptos
+      Match                             algorithm =, alignment =, encrypt =, decrypt,                                   item
+        Match                           `algorithm,                             `theAlgorithm
+          displayOnNewLine '<encrypt:', `theAlgorithm, '>'
+          displayOnNewLine '{'
+          indentMore
+          Macro theFinal
+            encrypt                     lblPlaintext,                           lenPlaintext,                           theRest
+          End Macro
+          foundAlgorithm                =                                       true
+          padding                       =                                       ( alignment )
+          Break
+        End Match
+      End Match
+    End Irpv
+    If ( foundAlgorithm = false )
+      fail 'encryption', 'unknown algorithm »', `theAlgorithm, '«'
+    End If
+  Else Match                            theAlgorithm,                           someArguments
+    Irpv                                item,                                   crypto@@lstCryptos
+      Match                             algorithm =, alignment =, encrypt =, decrypt,                                   item
+        Match                           `algorithm,                             `theAlgorithm
+          displayOnNewLine '<encrypt:', `theAlgorithm, '>'
+          displayOnNewLine '{'
+          indentMore
+          Macro theFinal
+            ;there should not be any encryption without arguments, i.e. a key, the block cipher mode of operation, initalisation vector, etc.; well, perhaps ROT13
+            encrypt                     lblPlaintext,                           lenPlaintext
+          End Macro
+          foundAlgorithm                =                                       true
+          padding                       =                                       ( alignment )
+          Break
+        End Match
+      End Match
+    End Irpv
+    If ( foundAlgorithm = false )
+      fail 'encryption', 'unknown algorithm »', `theAlgorithm, '«'
+    End If
+  Else
+    fail 'encryption', 'cannot match'
+  End Match
+  Macro end?.encrypt
+      rb                                ( padding - (( $ - 1 ) mod padding ) - 1 )
+      db                                ''
+      lenPlaintext                      =                                       ( $ )
+    End Virtual
+    theFinal
+    indentLess
+    displayOnNewLine '}'
+    Purge end?.encrypt
+  End Macro
+  Virtual                               At null
+    lblPlaintext::
+End Macro
+;( some algorithms )
+;{
+  Include 'crypto/aes.flib'
+;}

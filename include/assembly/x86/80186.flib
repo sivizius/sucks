@@ -1,4 +1,4 @@
-Include 'include/assembly/8086.flib'
+Include 'include/assembly/x86/8086.flib'
 x86@@isaVersion                         =                                       x86@@i80186
 use16
 Purge pusha?, popa?, outsb?, outsw?, insb?, insw?, enter?, leave?

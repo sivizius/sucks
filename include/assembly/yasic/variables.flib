@@ -284,7 +284,7 @@ Macro yasic@@newType                    theType*,                               
     .yasic@@#theType#@tuid              =                                       yasic@@idOfType
   End If
   yasic@@idOfType                       =                                       ( yasic@@idOfType + 1 )
-  Store                                 word theSize                            At yasic@@lblTypes:( .yasic@@#theType#@tuid * __word__ )
+  Store                                 word theSize                            At yasic@@lblTypes:( .yasic@@#theType#@tuid * word )
   Macro yasic@@ctrLocalVariables        varName*
     yasic@@ctrLocalVariables            varName
     If ( .yasic@@#varName#@num_#theType > null )

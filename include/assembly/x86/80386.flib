@@ -1,4 +1,4 @@
-Include 'include/assembly/80286.flib'
+Include 'include/assembly/x86/80286.flib'
 x86@@isaVersion                         =                                       x86@@i80386
 use32
 Purge hcf? ;only i80286

@@ -1156,6 +1156,7 @@ Macro mov?                              dst*,                                   
           x86@@addPrefix                0x66
         End If
         x86@@putOpcode                  ( 0xb0 or ( opcode * 8 ) or dstOperand.register )
+        lister@@putOperand              dstOperand.symbol
       Else
         x86@@emitInstruction            'mov',    ( 0xc6 or opcode ), size,               null,                         dstOperand
       End If
