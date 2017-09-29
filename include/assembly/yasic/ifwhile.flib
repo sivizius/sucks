@@ -1,29 +1,22 @@
 yasic@@ifWhileState                     Equ                                     ''
 Macro if                                whenExpression&
   yasic@@ifWhileState                   Equ                                     'if'
-  pushExpression                        whenExpression
-  format@@newSpace
+  yasic@@parseExpression                whenExpression
+  yasic@@optimiseExpression
+  yasic@@targetISA.yasic.if
 End Macro
 Macro elif                              elseExpression&
-  Local theSpace
   Match                                 'if',                                   yasic@@ifWhileState
-    done
-    theSpace format@@endSpace
-    when                                ( theSpace.offs )
-    pushExpression                      elseExpression
-    format@@newSpace
+    yasic@@parseExpression              elseExpression
+    yasic@@optimiseExpression
+    yasic@@targetISA.yasic.elif
   Else
     fail 'elif', 'unexpected »elif«'
   End Match
 End Macro
 Macro else
-  Local theSpace
   Match                                 'if',                                   yasic@@ifWhileState
-    done
-    theSpace format@@endSpace
-    when                                ( theSpace.offs )
-    pushConstant                        ( 1 )
-    format@@newSpace
+    yasic@@targetISA.yasic.else
   Else
     fail 'else', 'unexpected »else«'
   End Match
@@ -31,15 +24,10 @@ Macro else
   yasic@@ifWhileState                   Equ                                     'else'
 End Macro
 Macro end.if
-  Local theSpace
   Match                                 'if',                                   yasic@@ifWhileState
-    done
-    theSpace format@@endSpace
-    next                                ( theSpace.offs )
+    yasic@@targetISA.yasic.else
   Else Match                            'else',                                 yasic@@ifWhileState
-    done
-    theSpace format@@endSpace
-    next                                ( theSpace.offs )
+    yasic@@targetISA.yasic.else
   Else
     fail 'end.if', 'unexpected »end if«'
   End Match
@@ -47,22 +35,22 @@ Macro end.if
 End Macro
 Macro while                             expression&
   yasic@@ifWhileState                   Equ                                     'while'
-  format@@newSpace
-  pushExpression                        expression
-  lnot
-  break
+  yasic@@parseExpression                expression
+  yasic@@optimiseExpression
+  yasic@@targetISA.yasic.while
 End Macro
 Macro end.while
   Local theSpace
   Match                                 'while',                                yasic@@ifWhileState
-    done
-    theSpace format@@endSpace
-    loop                                ( theSpace.offs )
+    yasic@@targetISA.yasic.endwhile
   Else
     fail 'end.while', 'unexpected »end while«'
   End Match
   Restore                               yasic@@ifWhileState
 End Macro
+
+
+
 
 Macro try
   yasic@@ifWhileState                   Equ                                     'try'

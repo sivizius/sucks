@@ -1,4 +1,4 @@
-Format binary  As 'uf4'
+;Format binary  As 'uf4'
 Include                                 'include/main.flib'
 Include                                 'include/formats.flib'
 Virtual                                 At null

@@ -33,8 +33,27 @@ Virtual                                 At null
     rw                                  ( yasic@@maxNumOfTypes )
 End Virtual
 
-Struc assembly@@yasic                   ignore&
-  .                                     assembly@@fbc0
+Struc assembly@@yasic                   someArguments&
+  If ( defined yasic@@targetISA )
+    fail 'assembly@@yasic', 'close previous yasic-environment before opening another one'
+  End If
+  Match                                 ===> instructionset=, parameters,       someArguments
+    yasic@@targetISA                    assembly@@findInstructionSet            instructionset
+    If ( yasic@@targetISA )
+      .                                 yasic@@targetISA.init,                  parameters
+    Else
+      fail 'assembly@@yasic', 'unknown instructionset »', `instructionset, '«'
+    End If
+  Else Match                            ===> instructionset,                    someArguments
+    yasic@@targetISA                    assembly@@findInstructionSet            instructionset
+    If ( yasic@@targetISA )
+      .                                 yasic@@targetISA.init
+    Else
+      fail 'assembly@@yasic', 'unknown instructionset »', `instructionset, '«'
+    End If
+  Else
+    fail 'assembly@@yasic', 'target instructionset architecture must be set'
+  End Match
   yasic@@ptrQueque                      =                                       null
   yasic@@endQueque                      =                                       null
   yasic@@ptrStack                       =                                       null
@@ -43,56 +62,18 @@ Struc assembly@@yasic                   ignore&
   yasic@@topHelpStack                   =                                       null
   yasic@@ptrStrings                     =                                       null
   yasic@@endStrings                     =                                       null
+
   yasic@@global                         Equ                                     +
-  .yasic@@symbols                       Equ
-  .yasic@@delSymbols                    Equ
-  Macro yasic@@ctrLocalVariables        varName*
-  End Macro
-  Macro yasic@@numLocalVariables        varName*
-  End Macro
-  yasic@@idOfType                       =                                       1
-  yasic@@newType                        byte,                                   byte
-  yasic@@newType                        word,                                   word
-  yasic@@newType                        dword,                                  dword
-  yasic@@newType                        qword,                                  qword
+  yasic@@globalSymbols                  Equ
+  yasic@@idOfNextGlobal                 =                                       null
+  yasic@@localSymbols                   Equ
+  yasic@@idOfNextLocal                  =                                       null
+
   Include 'include/assembly/yasic/ifwhile.flib'
+  .yasic.init
   Macro assembly@@finaliser
-    Local symb, delsymb, newsymb, found
-    assembly@@finaliser
+    Restore yasic@@globalSymbols, yasic@@localSymbols
     Purge assembly@@finaliser
-    ;;for each symbol in .yasic@@symbols
-    ;;  compare with each symbol in .yasic@@delSymbols
-    ;;  if in .yasic@@delSymbols
-    ;;    purge macro
-    ;;  else
-    ;;    add symbol to newsymb
-    ;;  remove symbol from .yasic@@symbols
-    Irpv                                symb,                                   .yasic@@symbols
-      If ( `symb )
-        found                           =                                       false
-        Irpv                            delsymb,                                .yasic@@delSymbols
-          Match                         `symb,                                  `delsymb
-;            displayOnNewLine '~cmp: »', `symb, '« with »', `delsymb, '«'
-;            display '- delete'
-            Purge symb
-            found                       =                                       true
-          End Match
-        End Irpv
-        If ( found = false )
-          newsymb                       Equ                                     symb
-        End If
-      End If
-      Restore                           .yasic@@symbols
-    End Irpv
-    ;;.yasic@@symbols is now empty
-    ;;for each symbol in newsymb
-    ;;  add symbol to .yasic@@symbols
-    Irpv                                symb,                                   newsymb
-      .yasic@@symbols                   Equ                                     symb
-    End Irpv
-    Irpv                                symb,                                   .yasic@@symbols
-;      displayOnNewLine '>', `symb
-    End Irpv
   End Macro
 End Struc
 assembly@@addInstructionSet             yasic,                                  assembly@@yasic

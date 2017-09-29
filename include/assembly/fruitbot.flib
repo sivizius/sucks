@@ -142,6 +142,12 @@ End Struc
   fbc0@@tStack                          =                                       0x0c                                    ;value is in the stack
   fbc0@@tUnknown                        =                                       0xff                                    ;unknown operant, should cause an fatal error!
 ;}
+;( return-types )
+;{
+  Macro fbc0@@qword                     someArguments&
+    ;
+  End Macro
+;}
 Struc assembly@@fbc0                    ignore&
   Local theMain
   Macro assembly@@finaliser
@@ -150,5 +156,88 @@ Struc assembly@@fbc0                    ignore&
   End Macro
   Include 'include/assembly/fruitbot/fbc0.flib'
   .uf4                                  =                                       fbc0@@version
+  Macro .yasic.if
+    ;;.yasic.pushExpression
+    format@@newSpace
+  End Macro
+  Macro .yasic.elif
+    Local theSpace
+    done
+    theSpace format@@endSpace
+    when                                ( theSpace.offs )
+    ;;.yasic.pushExpression
+    format@@newSpace
+  End Macro
+  Macro .yasic.else
+    Local theSpace
+    done
+    theSpace format@@endSpace
+    when                                ( theSpace.offs )
+    ;;.yasic.pushConstant                 ( 1 )
+    format@@newSpace
+  End Macro
+  Macro .yasic.endif
+    Local theSpace
+    done
+    theSpace format@@endSpace
+    next                                ( theSpace.offs )
+  End Macro
+  Macro .yasic.while
+    format@@newSpace
+    ;;.yasic.pushExpression
+    lnot
+    break
+  End Macro
+  Macro .yasic.endwhile
+    Local theSpace
+    done
+    theSpace format@@endSpace
+    loop                                ( theSpace.offs )
+  End Macro
+  Macro .yasic.compile                  node*
+    If      ( node.type = yasic@@tOperator )
+      If      ( node.value = yasic@@opAdd )
+        add
+      Else If ( node.value = yasic@@opSub )
+        sub
+      Else If ( node.value = yasic@@opMul )
+        mul
+      Else If ( node.value = yasic@@opDiv )
+        div
+      Else
+        fail 'fruitbot.yasic.compile', 'unknown operator: ', qword node.value
+      End If
+    Else If ( node.type = yasic@@tConstConstant )
+      pushConstant                      ( node.value + 0 )
+    Else If ( node.type = yasic@@tConstByte )
+      pushByte                          ( node.value + 0 )
+    Else If ( node.type = yasic@@tConstWord )
+      pushWord                          ( node.value + 0 )
+    Else If ( node.type = yasic@@tConstDword )
+      pushDWord                         ( node.value + 0 )
+    Else If ( node.type = yasic@@tConstQWord )
+      pushQWord                         ( node.value + 0 )
+    Else If ( node.type = yasic@@tVariableGlobal )
+      ;pushConstant                      ( node.misc  + 0 )                      ;type uid
+      ;pushConstant                      ( node.value + 0 )                      ;var uid
+      ;getGlobal
+    Else If ( node.type = yasic@@tVariableLocal )
+      ;pushConstant                      ( node.misc  + 0 )                      ;type uid
+      ;pushConstant                      ( node.value + 0 )                      ;var uid
+      ;getLocal
+    Else
+      fail 'fruitbot.yasic.compile', 'unknown node-type: ', word node.type
+    End If
+  End Macro
+  Macro .yasic.getGlobal                uid*,                                   type*
+  End Macro
+  Macro .yasic.getLocal                 uid*,                                   type*
+  End Macro
+  Macro .yasic.init
+    ;yasic@@newType                      byte,                                   byte
+    ;yasic@@newType                      word,                                   word
+    ;yasic@@newType                      dword,                                  dword
+    yasic@@newType                      qword,                                  qword
+  End Macro
 End Struc
 assembly@@addInstructionSet             fbc0,                                   assembly@@fbc0

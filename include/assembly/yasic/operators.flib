@@ -111,17 +111,3 @@ Macro yasic@@opDisplay                  operator*
     displayHexByte ( operator )
   End If
 End Macro
-Macro yasic@@opCompile                  operator*
-  If false
-  Else If ( operator = yasic@@opAdd )
-    add
-  Else If ( operator = yasic@@opSub )
-    sub
-  Else If ( operator = yasic@@opMul )
-    mul
-  Else If ( operator = yasic@@opDiv )
-    div
-  Else
-    fail 'yasic@@opCompile', 'cannot compile operation'
-  End If
-End Macro

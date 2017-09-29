@@ -1,0 +1,571 @@
+;( types )
+;{
+  webassembly@@i32                      =                                       0x7f
+  webassembly@@i64                      =                                       0x7e
+  webassembly@@f32                      =                                       0x7d
+  webassembly@@f64                      =                                       0x7c
+  webassembly@@anyfunc                  =                                       0x70
+  webassembly@@func                     =                                       0x60
+  webassembly@@empyBlockType            =                                       0x40
+;}
+;( sections )
+;{
+  webassembly@@sType                    =                                        1
+  webassembly@@sImport                  =                                        2
+  webassembly@@sFunction                =                                        3
+  webassembly@@sTable                   =                                        4
+  webassembly@@sMemory                  =                                        5
+  webassembly@@sGlobal                  =                                        6
+  webassembly@@sExport                  =                                        7
+  webassembly@@sStart                   =                                        8
+  webassembly@@sElement                 =                                        9
+  webassembly@@sCode                    =                                       10
+  webassembly@@sData                    =                                       11
+;}
+;( external_kind )
+;{
+  webassembly@@kFunction                =                                       0
+  webassembly@@kTable                   =                                       1
+  webassembly@@kMemory                  =                                       2
+  webassembly@@kGlobal                  =                                       3
+;}
+webassembly@@fetchedModules             Equ
+Struc webassembly@@fetchModule          name*
+  Local foundModule, temp, offs, size, count, index, nameObject
+  Local ptrTypes, numTypes, ptrImports, numImports, ptrFunctions, numFunctions, ptrExports, numExports
+  Local lblFunctionIndexSpace,  ptrFunctionIndexSpace,  lenFunctionIndexSpace,  numGlobalIndexSpace
+  Local lblGlobalIndexSpace,    ptrGlobalIndexSpace,    lenGlobalIndexSpace,    numGlobalIndexSpace
+  Local lblTypeDefintions,      ptrTypeDefinitions,     lenTypeDefinitions,     numTypeDefinitions
+  foundModule                           =                                       ( false )
+  Irpv                                  item,                                   webassembly@@fetchedModules
+    Match                               strModule theModule,                    item
+      If ( strModule eq name )
+        .                               =                                       theModule
+        foundModule                     =                                       ( true )
+        Break
+      End If
+    End Match
+  End Irpv
+  If ( foundModule = false )
+    ptrTypes                            =                                       null
+    numTypes                            =                                       null
+    ptrImports                          =                                       null
+    numImports                          =                                       null
+    ptrFunctions                        =                                       null
+    numFunctions                        =                                       null
+    ptrExports                          =                                       null
+    numExports                          =                                       null
+    Virtual                             At null
+      lblTypeDefintions::
+        rb lenTypeDefinitions
+        db ''
+    End Virtual
+    Virtual                             At null
+      lblFunctionIndexSpace::
+        rb lenFunctionIndexSpace
+        db ''
+    End Virtual
+    Virtual                             At null
+      lblGlobalIndexSpace::
+        rb lenGlobalIndexSpace
+        db ''
+    End Virtual
+    ptrFunctionIndexSpace               =                                       null
+    numFunctionIndexSpace               =                                       null
+    ptrGlobalIndexSpace                 =                                       null
+    numGlobalIndexSpace                 =                                       null
+    ptrTypeDefinitions                  =                                       null
+    numTypeDefinitions                  =                                       null
+    Virtual                             At null
+      file strModule
+      size                              =                                       ( $ )
+      Load                              temp dword                              From ( null )
+      If ( temp = ( 'asm' shl 8 ))
+        offs                            =                                       qword
+        While ( offs < size )           ;( find all sections )
+          Load                          temp  byte                              From ( offs )
+          Load                          size  dword                             From ( offs + byte )
+          offs                          =                                       ( offs + byte + dword )
+          Load                          count dword                             From ( offs )
+          If      ( temp = webassembly@@sType )
+            If ( ptrTypes = null )
+              ptrTypes                  =                                       offs
+              numTypes                  =                                       count
+            Else
+              fail 'webassembly@@fetchModule', 'more than one type-section'
+            End If
+          Else If ( temp = webassembly@@sImport )
+            If ( ptrImports = null )
+              ptrImports                =                                       offs
+              numImports                =                                       count
+            Else
+              fail 'webassembly@@fetchModule', 'more than one import-section'
+            End If
+          Else If ( temp = webassembly@@sFunction )
+            If ( ptrFunctions = null )
+              ptrFunctions              =                                       offs
+              numFunctions              =                                       count
+            Else
+              fail 'webassembly@@fetchModule', 'more than one function-section'
+            End If
+          Else If ( temp = webassembly@@sExport )
+            If ( ptrExports = null )
+              ptrExports                =                                       offs
+              numExports                =                                       count
+            Else
+              fail 'webassembly@@fetchModule', 'more than one export-section'
+            End If
+          End If
+          offs                          =                                       ( offs + size )
+        End While
+        ;( parse type-section )
+        ;{
+          offs                          =                                       ( ptrTypes )
+          Repeat                        numTypes
+            Load                        temp  byte                              From ( offs )
+            If ( temp = webassembly@@func )
+              temp                      =                                       ( offs )
+              Store                     qword ( offs )                          At lblTypeDefintions:( ptrTypeDefinitions )
+              ptrTypeDefinitions        =                                       ( ptrTypeDefinitions + qword )
+              Load                      size dword                              From ( offs + byte )
+              offs                      =                                       ( offs + byte + dword + size )
+              Load                      size byte                               From ( offs + byte + size )
+              offs                      =                                       ( offs + byte + size )
+              Store                     qword ( offs - temp )                   At lblTypeDefintions:( ptrTypeDefinitions )
+              ptrTypeDefinitions        =                                       ( ptrTypeDefinitions + qword )
+              numTypeDefinitions        =                                       ( numTypeDefinitions + 1 )
+            Else
+              fail 'webassembly@@fetchModule', 'invalid form-value in type-section'
+            End If
+          End Repeat
+        ;}
+        ;( parse import-section )
+        ;{
+          offs                          =                                       ( ptrImports )
+          Repeat                        numImports
+            ;skip name of module
+            Load                        temp  dword                             From ( offs )
+            offs                        =                                       ( offs + dword + temp )
+            ;skip name of object
+            Load                        temp  dword                             From ( offs )
+            offs                        =                                       ( offs + dword + temp )
+            Load                        temp  byte                              From ( offs )
+            Load                        index dword                             From ( offs + 1 )
+            offs                        =                                       ( offs + byte + dword )
+            If      ( temp = webassembly@@kFunction )
+              Store                     dword index                             At lblFunctionIndexSpace:( ptrFunctionIndexSpace )
+              ptrFunctionIndexSpace     =                                       ( ptrFunctionIndexSpace + dword )
+              numFunctionIndexSpace     =                                       ( numFunctionIndexSpace + 1 )
+            Else If ( temp = webassembly@@kTable )
+            Else If ( temp = webassembly@@kMemory )
+            Else If ( temp = webassembly@@kGlobal )
+            Else
+              fail 'webassembly@@fetchModule', 'invalid external kind ', byte temp, ' in import-section'
+            End If
+          End Repeat
+        ;}
+        ;( parse function-section )
+        ;{
+          offs                          =                                       ( ptrFunctions )
+          Repeat                        numFunctions
+            Load                        index dword                             From ( offs )
+            offs                        =                                       ( offs + dword )
+            Store                       dword index                             At lblFunctionIndexSpace:( ptrFunctionIndexSpace )
+            ptrFunctionIndexSpace       =                                       ( ptrFunctionIndexSpace + dword )
+            numFunctionIndexSpace       =                                       ( numFunctionIndexSpace + 1 )
+          End Repeat
+        ;}
+        ;( parse export-section )
+        ;{
+          If ( ptrExports )
+            offs                        =                                       ( ptrExports )
+            Repeat                      numExports
+              Load                      size dword                              From ( offs )
+              Load                      nameObject size                         From ( offs + dword )
+              offs                      =                                       ( offs + dword + size )
+              Load                      temp  byte                              From ( offs )
+              Load                      index dword                             From ( offs + byte )
+              offs                      =                                       ( offs + byte + dword )
+              If      ( temp = webassembly@@kFunction )
+                If ( indexObject < numFunctionIndexSpace )
+                  Load                  temp  dword                             From lblFunctionIndexSpace:( indexObject * dword )
+                  If ( temp < numTypeDefinitions )
+                    Load                temp  qword                             From lblTypeDefintions:( temp * 2 * qword + 0 )
+                    Load                size  qword                             From lblTypeDefintions:( temp * 2 * qword + 8 )
+                    Load                temp  size                              From ( temp )
+                    .                   Equ                                     webassembly@@kFunction,       string ( nameObject ), size, temp
+                  Else
+                    fail 'webassembly@@fetchModule', 'invalid function-type'
+                  End If
+                Else
+                  fail 'webassembly@@fetchModule', 'invalid function-index'
+                End If
+              Else If ( temp = webassembly@@kTable    )
+                If ( index = null )
+                  .                     Equ                                     webassembly@@kTable,          string ( nameObject )
+                Else
+                  fail 'webassembly@@fetchModule', 'index of the table-index-space must be null'
+                End If
+                fail 'webassembly@@fetchModule', 'not implemented yet'
+              Else If ( temp = webassembly@@kMemory   )
+                If ( index = null )
+                  .                     Equ                                     webassembly@@kMemory,         string ( nameObject )
+                Else
+                  fail 'webassembly@@fetchModule', 'index of the memory-index-space must be null'
+                End If
+                fail 'webassembly@@fetchModule', 'not implemented yet'
+              Else If ( temp = webassembly@@kGlobal   )
+                    .                   Equ                                     webassembly@@kGlobal,         string ( nameObject )
+                fail 'webassembly@@fetchModule', 'not implemented yet'
+              Else
+                fail 'webassembly@@fetchModule', 'invalid external kind ', byte kindObject
+              End If
+            End Repeat
+          Else
+            fail 'webassembly@@fetchModule', 'cannot find export-section'
+          End If
+        ;}
+        lenFunctionIndexSpace           =                                       ptrFunctionIndexSpace
+        lenGlobalIndexSpace             =                                       ptrGlobalIndexSpace
+      Else
+        fail 'webassembly@@fetchModule', 'invalid magic string'
+      End If
+    End Virtual
+  End If
+End Struc
+webassembly@@checkFailed                =                                       ( false )
+Macro webassembly@@checkName            varName*
+  Local char
+  Virtual                               At null
+    db `varName
+    Repeat                              ( $ ),                                  offs:( null )
+      Load                              char byte                               From offs
+      If  ( char >= '0' & char <= '9' & offs > 0 ) | \
+          ( char >= 'A' & char <= 'Z' ) | \
+          ( char >= 'a' & char <= 'z' ) | \
+          ( char = '_'  & offs > 0 )
+      Else
+        webassembly@@checkFailed        =                                       ( true )
+        fail 'checkName', '»', `varName, '« does not match with »[A-Za-z][0-9A-Za-z_]*«'
+      End If
+    End Repeat
+  End Virtual
+End Macro
+Macro webassembly@@newFunction          varName*,           theType*,           theParameters&
+  checkName                             varName
+  If ( checkFailed = false )
+    Macro varName                       arguments&
+      displayOnNewLine 'call ', `varName, '()'
+      Match                             =( theArguments =),                     arguments
+        Define                          lstArguments                            theArguments
+        Irpv                            aParameter,                             .webassembly@@#varName#@args
+          Match                         anArgument =, restArguments,            lstArguments
+            Define                      lstArguments                            restArguments
+            Match                       theType =, theParameter =, theDefault,  aParameter
+              displayOnNewLine '  ', `anArgument, ' -> ', `theParameter
+              pushExpression            anArgument
+            Else Match                  theType =, theParameter,                aParameter
+              displayOnNewLine '  ', `anArgument, ' -> ', `theParameter
+              pushExpression            anArgument
+            End Match
+          Else Match                    anArgument,                             lstArguments
+            Define                      lstArguments
+            Match                       theType =, theParameter =, theDefault,  aParameter
+              displayOnNewLine '  ', `anArgument, ' +> ', `theParameter
+              pushExpression            anArgument
+            Else Match                  theType =, theParameter,                aParameter
+              displayOnNewLine '  ', `anArgument, ' +> ', `theParameter
+              pushExpression            anArgument
+            End Match
+          Else Match                    ,                                       lstArguments
+            Match                       theType =, theParameter =, theDefault,  aParameter
+              displayOnNewLine '  ', `theDefault, ' => ', `theParameter
+              pushExpression            theDefault
+            Else
+              fail `varName, 'not enought arguments'
+            End Match
+          End Match
+        End Irpv
+      End Match
+      call                              .webassembly@@#varName#@addr
+    End Macro
+    ;( finally )
+    ;{
+      Macro end?.theType
+        indentLess
+        displayOnNewLine '}'
+        Purge end?.theType
+      End Macro
+    ;}
+    ;( initially )
+    ;{
+      Match                           any,                                    theParameters
+        displayOnNewLine `theType, ' ', `varName, ' ( ', `any, ' ):'
+      Else
+        displayOnNewLine `theType, ' ', `varName, ' ():'
+      End Match
+      displayOnNewLine '{'
+      indentMore
+    ;}
+    ;( parse parameters )
+    ;{
+      numParameters                   =                                       null
+      Match                           any,                                    theParameters
+        Define                        lstParameters                           any
+        Define                        hazDefault                              false
+        While ( true )
+          Match                       aParameter =, restParameters,           lstParameters
+            Define                    lstParameters                           restParameters
+            Match                     type parameter == default,              aParameter
+              ;( undefinded type )
+              Define                  hazDefault                              true
+              .webassembly@@#varName#@args      Equ                           type, parameter, default
+            Else Match                parameter == default,                   aParameter
+              ;( undefinded type )
+              Define                  hazDefault                              true
+              .webassembly@@#varName#@args      Equ                           void, parameter, default
+            Else Match                type parameter,                         aParameter
+              Match                   =false,                                 hazDefault
+                .webassembly@@#varName#@args    Equ                           type, parameter
+              Else
+                fail `theType, 'already haz parameters with default values'
+              End Match
+            Else
+              Match                   =false,                                 hazDefault
+                .webassembly@@#varName#@args    Equ                           void, aParameter
+              Else
+                fail `theType, 'already haz parameters with default values'
+              End Match
+            End Match
+          Else Match                  aParameter,                             lstParameters
+            Match                     type parameter == default,              aParameter
+              Define                  hazDefault                              true
+              .webassembly@@#varName#@args      Equ                           type, parameter, default
+            Else Match                parameter == default,                   aParameter
+              ;( undefinded type )
+              Define                  hazDefault                              true
+              .webassembly@@#varName#@args      Equ                           void, parameter, default
+            Else Match                type parameter,                         aParameter
+              Match                   =false,                                 hazDefault
+                .webassembly@@#varName#@args    Equ                           type, parameter
+              Else
+                fail `theType, 'already haz parameters with default values'
+              End Match
+            Else
+              ;( undefinded type )
+              Match                     =false,                                 hazDefault
+                .webassembly@@#varName#@args    Equ                             void, aParameter
+              Else
+                fail `theType, 'already haz parameters with default values'
+              End Match
+            End Match
+            Break
+          End Match
+          numParameters                 =                                       ( numParameters + 1 )
+        End While
+      Else
+        ;.webassembly@@#varName#@args          Equ
+      End Match
+    ;}
+  End If
+End Macro
+Macro webassembly@@initFormat           version:( 13 ),                         ignore&
+  Local theHeader
+  Local newFunction
+  Local offsTypes,    ptrTypes,   lenTypes,   ctrTypes,   numTypes
+  Local offsImports,  ptrImports, lenImports, ctrImports, numImports
+  checkFailed                           =                                       ( false )
+  Macro webassembly@@stopFormat
+    format@@endSpace
+    lenTypes                            =                                       ( ptrTypes - offsTypes )
+    numTypes                            =                                       ctrTypes
+    lenImports                          =                                       ptrImports
+    numImports                          =                                       ctrImports
+    Purge section?
+  End Macro
+  Macro section?                        name*,                                  someArguments&
+    Local sectionID, theSection
+    Macro end?.section?
+      theSection                        format@@endSpace
+      Purge end?.section?
+    End Macro
+    format@@newSpace
+      sectionID                         =                                       null
+      Irp                               item, \
+                                        'type', 'import', 'function', 'table', 'memory', 'global', 'export', 'start', 'element', 'code', 'data'
+        If ( name eq item )
+          sectionID                     =                                       ( % )
+          Break
+        End If
+      End Irp
+      db sectionID                      ;id
+      dd ( theSection.resv - 5 )        ;payload_len
+      If ( sectionID = null )           ;custom section
+        dd lengthof ( name )            ;name_len
+        db name                         ;name
+      End If
+      ;( payload_data )
+      db someArguments
+  End Macro
+  ctrTypes                              =                                       null
+  ctrImports                            =                                       null
+  Struc type?                           someArguments&
+    Local count
+    Match                               params ===> returns,                    someArguments
+      ;theType type i32, i32 => i32
+      Store                             byte webassembly@@func                  At format@@lblOutput:( theHeader + ptrTypes )
+      ptrTypes                          =                                       ( ptrTypes + byte )
+      count                             =                                       null
+      Irp                               item,                                   params
+        If      ( `item eq 'i32' )
+          Store                         byte webassembly@@i32                   At format@@lblOutput:( theHeader + ptrTypes + dword + count )
+        Else If ( `item eq 'i64' )
+          Store                         byte webassembly@@i64                   At format@@lblOutput:( theHeader + ptrTypes + dword + count )
+        Else If ( `item eq 'f32' )
+          Store                         byte webassembly@@f32                   At format@@lblOutput:( theHeader + ptrTypes + dword + count )
+        Else If ( `item eq 'f64' )
+          Store                         byte webassembly@@f64                   At format@@lblOutput:( theHeader + ptrTypes + dword + count )
+        Else
+          fail 'type', 'unknown type »', `item, '«'
+        End If
+        count                           =                                       ( count + 1 )
+      End Irp
+      Store                             dword count                             At format@@lblOutput:( theHeader + ptrTypes )
+      ptrTypes                          =                                       ( ptrTypes + dword + count )
+      count                             =                                       null
+      Irp                               item,                                   returns
+        If      ( `item eq 'i32' )
+          Store                         byte webassembly@@i32                   At format@@lblOutput:( theHeader + ptrTypes + byte + count )
+        Else If ( `item eq 'i64' )
+          Store                         byte webassembly@@i64                   At format@@lblOutput:( theHeader + ptrTypes + byte + count )
+        Else If ( `item eq 'f32' )
+          Store                         byte webassembly@@f32                   At format@@lblOutput:( theHeader + ptrTypes + byte + count )
+        Else If ( `item eq 'f64' )
+          Store                         byte webassembly@@f64                   At format@@lblOutput:( theHeader + ptrTypes + byte + count )
+        Else
+          fail 'type', 'unknown type »', `item, '«'
+        End If
+        count                           =                                       ( count + 1 )
+      End Irp
+      Store                             byte count                              At format@@lblOutput:( theHeader + ptrTypes )
+      ptrTypes                          =                                       ( ptrTypes + byte + count )
+    Else
+      fail 'type', 'cannot parse arguments'
+    End Match
+    .                                   =                                       ( ctrTypes )
+    ctrTypes                            =                                       ( ctrTypes + 1 )
+  End Struc
+  Struc import?                         someArguments&
+    Local size, temp, strModule, strObject, theModule, foundObject
+    Match                               object =from? module,                   someArguments
+      ;theObject import object from module
+      If ( module eqtype STRING )
+        strModule                       Equ                                     module
+      Else
+        strModule                       Equ                                     `module
+      End If
+      If ( object eqtype STRING )
+        strObject                       Equ                                     object
+      Else
+        strObject                       Equ                                     `object
+      End If
+      Virtual                           At null
+        db                              strModule
+        size                            =                                       ( $ )
+        Load                            temp size                               From null
+      End Virtual
+      Store                             byte size                               At format@@lblOutput:( theHeader + ptrImports )
+      Store                             size temp                               At format@@lblOutput:( theHeader + ptrImports + 1 )
+      ptrImports                        =                                       ( ptrImports + size + 1 )
+      Virtual                           At null
+        db                              strObject
+        size                            =                                       ( $ )
+        Load                            temp size                               From null
+      End Virtual
+      Store                             byte size                               At format@@lblOutput:( theHeader + ptrImports )
+      Store                             size temp                               At format@@lblOutput:( theHeader + ptrImports + 1 )
+      ptrImports                        =                                       ( ptrImports + size + 1 )
+      theModule                         webassembly@@fetchModule                strModule
+      foundObject                       =                                       ( false )
+      Irpv                              item,                                   theModule
+        Match                           kind=, name=, rest,                     item
+          If ( name eq strObject )
+            If ( kind = webassembly@@kFunction )
+              Match                     size=, temp,                            rest
+                Store                   size temp                               At format@@lblOutput:( theHeader + ptrTypes )
+                ptrTypes                =                                       ( ptrTypes + size )
+              End Match
+            End If
+            foundObject                 =                                       ( true )
+            Break
+          End If
+        Else
+          fail 'import', 'cannot match'
+        End Math
+      End Irpv
+      If ( foundObject = false )
+        fail 'import', 'could not find object »', strObject, '« in module »', strModule, '«'
+      End If
+    Else
+      fail 'import', 'cannot parse arguments'
+    End Match
+    .                                   =                                       ( ctrImports )
+    ctrImports                          =                                       ( ctrImports + 1 )
+  End Struc
+  Irp                                   < name, value >, \
+                                        i32,  webassembly@@i32
+    Macro name                          declaration&
+      Match                             varName =( theParameters =),            declaration                             ;<function>
+        newFunction                     varName,            name,               theParameters
+      Else Match                        varName =(=),                           declaration
+        newFunction                     varName,            name
+      Else Match                        varName == anExpression,                declaration                             ;<variables with value>
+      Else Match                        varName,                                declaration                             ;<variables without value>
+      Else
+        fail `name, '???'
+      End Match
+    End Macro
+  End Irp
+  Macro entry?                          theFunction*
+    
+    Purge entry?
+    Macro entry?                        ignored&
+      fail 'entry', 'entry-point already defined'
+    End Macro
+  End Macro
+  format@@newSpace
+    format@@newSpace
+      db 0, 'asm'
+      dd version
+      ;( type-section )
+      ;{
+        offsTypes                       =                                       ( $ + byte + dword + dword )
+        ptrTypes                        =                                       ( offsTypes )
+        If ( numTypes )
+          db webassembly@@sType
+          dd ( lenTypes + dword )
+          dd numTypes
+          rb lenTypes
+        End If
+      ;}
+      ;( import-section )
+      ;{
+        ptrImports                      =                                       ( $ + 1 )
+        If ( numImports )
+          displayValue 'lenImports 0x', lenImports
+          ;db webassembly@@sImport + 2
+          ;dd ( lenImports + dword )
+          ;dd numImports
+          ;rb lenImports
+        End If
+      ;}
+      ;( start-section )
+      ;{
+        If ( defined entryPoint )
+          dd entryPoint
+        End If
+      ;}
+      db ''
+    theHeader                           format@@endSpace
+End Macro
+format@@addFormat                       WebAssembly,                            webassembly@@initFormat,                webassembly@@stopFormat

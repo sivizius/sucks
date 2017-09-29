@@ -1,0 +1,8 @@
+Struc assembly@@webassembly             ignore&
+  Macro assembly@@finaliser
+  End Macro
+  .uf4                                  =                                       'wa'
+  Macro .yasic.init
+  End Macro
+End Struc
+assembly@@addInstructionSet             WebAssembly,                            assembly@@webassembly

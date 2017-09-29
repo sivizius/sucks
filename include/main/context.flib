@@ -1,0 +1,40 @@
+context@@opened                         =                                       null
+Macro context@@beginLocal
+  context@@opened                       =                                       ( context@@opened + 1 )
+End Macro
+Macro context@@closeLocal
+  If ( context@@opened > 0 )
+    context@@opened                     =                                       ( context@@opened - 1 )
+  Else
+    fail 'context@@closeLocal', 'no opened local context left'
+  End If
+End Macro
+Macro context@@enableMultipleContexts
+  If ( context@@opened = null )
+    ;cannot be disabled
+    Purge context@@beginLocal, context@@closeLocal, context@@enableMultipleContexts
+    Macro context@@beginLocal
+      context@@opened                   =                                       ( context@@opened + 1 )
+      eval 'namespace context@@lbl', context@@namespace
+    End Macro
+    Macro context@@closeLocal
+      If ( context@@opened > 0 )
+        end namespace
+        context@@opened                 =                                       ( context@@opened - 1 )
+      Else
+        fail 'context@@closelocal', 'no open context left'
+      End If
+    End Macro
+    context@@counter                    =                                       null
+    Macro context@@newContext
+      Repeat                            1,                                      temp:( context@@counter )
+        context@@namespace              Equ                                     `temp
+    End Macro
+    Macro context@@endContext
+      End Repeat
+      context@@counter                  =                                       ( context@@counter + 1 )
+    End Macro
+  Else
+    fail 'context@@enableMultipleContexts', 'there are opened local contexts left'
+  End If
+End Macro

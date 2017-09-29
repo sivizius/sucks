@@ -35,7 +35,8 @@ To add your instructionset to the list of availabe instructionsets you have to p
         yourInstructionSet@@killMySelf                                                              ;Purges all your macros, except internal ones.
       End Macro                                                                                     ;Make sure, that all the instructions are not available anymore.
       Include 'include/assembly/yourInstructionSet/version0.flib'                                   ;Load the instructionset version 0. E.g. 80386.flib for i386-assembly. (second file)
-      .machine = yourInstructionSet@@version0                                                       ;Used e.g. by uf4 to specify the ISA of a code-yapter.
+      .uf4 = yourInstructionSet@@version0                                                           ;Used by uf4 to specify the ISA of a code-yapter.
+      .elf = null                                                                                   ;Used by elf to specify the ISA.
                                                                                                     ;Make sure, that this magic value does not interfere with other instructionsets.
     End Struc                                                                                       ;Please use upper-case, otherwise it could cause hardly debuggable errors.
     assembly@@addInstructionSet         yourInstructionSet, assembly@@yourInstructionSet            ;This actually adds the yourInstructionSet to the list of instructionsets.
@@ -90,7 +91,7 @@ This macroinstruction subset provides some macros for assembly languages of diff
   - [ ] jvm – java virtual machine
   - [ ] cpy - cpython byte code
   - [ ] rubinius byte code
-  - [ ] web assembly
+  - [ ] wasm – web assembly
   - [ ] CIL – common intermediate language
   - [ ] EBC – EFI byte code
 * high-level languages

@@ -100,7 +100,7 @@ Macro uf4@@initFormat                   ignore&
     yapters@@maxSymbols                 =                                       null
     yapters@@ctrSymbols                 =                                       null
     yapters@@ptrSymbols                 =                                       null
-    displayValue 'yapters@@lenSymbols 0x', yapters@@lenSymbols
+    ;displayValue 'yapters@@lenSymbols 0x', yapters@@lenSymbols
     Virtual                             At null
       yapters@@lblSymbols::
         rb                              ( yapters@@lenSymbols )

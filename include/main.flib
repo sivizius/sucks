@@ -166,6 +166,7 @@ Macro text
   End Macro
 End Macro
 
+Include 'include/main/context.flib'
 Include 'include/main/data.flib'
 Include 'include/main/display.flib'
 Include 'include/main/files.flib'

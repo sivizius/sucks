@@ -970,10 +970,25 @@ End Macro
     .uf4                                =                                       x86@@isaVersion
     .elf                                =                                       elf@@isa386
   End Struc
+  Struc assembly@@pentiumMMX            ignore&
+    Macro assembly@@finaliser
+      x86@@killMySelf
+    End Macro
+    Include 'include/assembly/x86/pentium.flib'
+    Include 'include/assembly/x86/MMX.flib'
+    .uf4                                =                                       x86@@isaVersion
+    .elf                                =                                       elf@@isa386
+  End Struc
   assembly@@addInstructionSet           8086,                                   assembly@@8086
+  assembly@@addInstructionSet           8088,                                   assembly@@8086
   assembly@@addInstructionSet           80186,                                  assembly@@80186
+  assembly@@addInstructionSet           80188,                                  assembly@@80186
   assembly@@addInstructionSet           80286,                                  assembly@@80286
+  assembly@@addInstructionSet           i286,                                   assembly@@80286
   assembly@@addInstructionSet           80386,                                  assembly@@80386
+  assembly@@addInstructionSet           i386,                                   assembly@@80386
   assembly@@addInstructionSet           80486,                                  assembly@@80486
+  assembly@@addInstructionSet           i486,                                   assembly@@80486
   assembly@@addInstructionSet           Pentium,                                assembly@@pentium
+  assembly@@addInstructionSet           PentiumMMX,                             assembly@@pentiumMMX
 ;}

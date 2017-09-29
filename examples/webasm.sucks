@@ -1,0 +1,4 @@
+format WebAssembly  11
+  i32 foobar ()
+  end i32
+end format

@@ -1,64 +1,9 @@
 Macro pushExpression                    expression&
+;  yasic@@displayExpression
+;  yasic@@optimiseExpression
+;  yasic@@displayExpression
   yasic@@parseExpression                expression
-;  yasic@@displayExpression
-  yasic@@optimiseExpression
-;  yasic@@displayExpression
   yasic@@compileExpression
-End Macro
-yasic@@func                             Equ
-yasic@@checkFailed                      =                                       false
-Macro yasic@@checkName                  varName*
-  Local offs, char, item
-  Virtual                               At null
-    db `varName
-    Repeat $, offs:( null )
-      Load                              char byte                               From offs
-      If  ( char >= '0' & char <= '9' & offs > 0 ) | \
-          ( char >= 'A' & char <= 'Z' ) | \
-          ( char >= 'a' & char <= 'z' ) | \
-          ( char = '_'  & offs > 0 )
-      Else
-        yasic@@checkFailed              =                                       true
-        fail 'yasic@@checkName', '»', `varName, '« does not match »[A-Za-z][0-9A-Za-z_]*«'
-      End If
-    End Repeat
-  End Virtual
-  Match                                 __func__,                               yasic@@func
-    Irpv                                item,                                   .yasic@@#__func__#@symbols
-;      displayOnNewLine '?cmp »', `item, '« with »', `varName, '«.'
-      Match                             `varName,                               `item
- ;       yasic@@checkFailed              =                                       true
-  ;      display ' - hit'
-        fail 'yasic@@checkName', 'local symbol »', `varName, '« already declared'
-      End Match
-    End Irpv
-    Irpv                                item,                                   .yasic@@symbols
-   ;   displayOnNewLine '!cmp »', `item, '« with »', `varName, '«.'
-      Match                             `varName,                               `item
-    ;    display ' - maybe'
-        If      ( .yasic@@#item#@type = yasic@@tFunction )
-     ;     display ' - hit'
-          yasic@@checkFailed            =                                       true
-          fail 'yasic@@checkName', 'symbol »', `varName, '« already declared as function'
-        Else If ( .yasic@@#item#@type = yasic@@tType )
-      ;    display ' - hit'
-          yasic@@checkFailed            =                                       true
-          fail 'yasic@@checkName', 'symbol »', `varName, '« already declared as type'
-        End If
-      End Match
-    End Irpv
-    .yasic@@#__func__#@symbols          Equ                                     varName
-  Else
-    Irpv                                item,                                   .yasic@@symbols
-;      displayOnNewLine '.cmp »', `item, '« with »', `varName, '«.'
-      Match                             `varName,                               `item
- ;       display ' - hit'
-        yasic@@checkFailed              =                                       true
-        fail 'yasic@@checkName', 'global symbol »', `varName, '« already declared'
-      End Match
-    End Irpv
-    .yasic@@symbols                     Equ                                     varName
-  End Match
 End Macro
 Macro yasic@@newFunction                varName*,                               theType*,                               theParameters&
   Local aParameter, restParameters, lstParameters, numParameters
@@ -66,12 +11,10 @@ Macro yasic@@newFunction                varName*,                               
   yasic@@checkName                      varName
   If ( yasic@@checkFailed = false )
     Macro varName                       arguments&
-      Local anArgument, restArguments, lstArguments, theArguments
-      Local aParameter, theType, theParameter, theDefault
       displayOnNewLine 'call ', `varName, '()'
       Match                             =( theArguments =),                     arguments
         Define                          lstArguments                            theArguments
-        Irpv                            aParameter,                             .yasic@@#varName#@args
+        Irpv                            aParameter,                             yasic@@#varName#@args
           Match                         anArgument =, restArguments,            lstArguments
             Define                      lstArguments                            restArguments
             Match                       theType =, theParameter =, theDefault,  aParameter
@@ -109,8 +52,7 @@ Macro yasic@@newFunction                varName*,                               
       Macro end?.theType!
         Local temp
         stop
-        indentLess
-        displayOnNewLine '}'
+
         yasic@@numLocalVariables        varName
         ;displayValue '~~0x', .yasic@@#varName#@num_#theType
         yasic@@func                     Equ
@@ -119,19 +61,17 @@ Macro yasic@@newFunction                varName*,                               
         lister@@putPrefix               'end'
         lister@@putInstruction          'function'
         temp                            format@@endSpace                        ;</function>
-        .yasic@@#varName#@type          =                                       ( yasic@@tFunction )
-        .yasic@@#varName#@addr          =                                       ( temp.offs )
-        displayValue 'address 0x', .yasic@@#varName#@addr
-        .yasic@@#varName#@size          =                                       ( temp.size )
+        yasic@@#varName#@type           =                                       ( yasic@@tFunction )
+        yasic@@#varName#@addr           =                                       ( temp.offs )
+        displayValue 'address 0x', yasic@@#varName#@addr
+        yasic@@#varName#@size           =                                       ( temp.size )
         Purge end.theType, return
       End Macro
     ;}
     ;( initally )
     ;{
-      format@@newSpace                                                          ;<function>
-      yasic@@global                     Equ                                     -
       yasic@@func                       Equ                                     varName
-      fbc0@@function                    `varName, .yasic@@#varName#@size,       .yasic@@#theType#@tuid,                 ( numParameters + 1 )
+      fbc0@@function                    `varName, yasic@@#varName#@size,        yasic@@#theType#@tuid,                 ( numParameters + 1 )
       yasic@@ctrLocalVariables          varName
       Match                             any,                                    theParameters
         displayOnNewLine `theType, ' ', `varName, ' ( ', `any, ' ):'
@@ -140,86 +80,26 @@ Macro yasic@@newFunction                varName*,                               
       End Match
       displayOnNewLine '{'
       indentMore
-      .yasic@@#varName#@symbols         Equ
+      yasic@@#varName#@symbols          Equ
       Macro return                      value
         If ( defined value )
         Else
         End If
       End Macro
     ;}
-    ;( parse parameters )
-    ;{
-      numParameters                     =                                       null
-      Match                             any,                                    theParameters
-        Define                          lstParameters                           any
-        Define                          hazDefault                              false
-        While ( true )
-          Match                         aParameter =, restParameters,           lstParameters
-            Define                      lstParameters                           restParameters
-            Match                       type parameter == default,              aParameter
-              ;( undefinded type )
-              Define                    hazDefault                              true
-              .yasic@@#varName#@args    Equ                                     type, parameter, default
-            Else Match                  parameter == default,                   aParameter
-              ;( undefinded type )
-              Define                    hazDefault                              true
-              .yasic@@#varName#@args    Equ                                     void, parameter, default
-            Else Match                  type parameter,                         aParameter
-              Match                     =false,                                 hazDefault
-                .yasic@@#varName#@args  Equ                                     type, parameter
-              Else
-                fail `theType, 'already haz parameters with default values'
-              End Match
-            Else
-              Match                     =false,                                 hazDefault
-                .yasic@@#varName#@args  Equ                                     void, aParameter
-              Else
-                fail `theType, 'already haz parameters with default values'
-              End Match
-            End Match
-          Else Match                    aParameter,                             lstParameters
-            Match                       type parameter == default,              aParameter
-              Define                    hazDefault                              true
-              .yasic@@#varName#@args    Equ                                     type, parameter, default
-            Else Match                  parameter == default,                   aParameter
-              ;( undefinded type )
-              Define                    hazDefault                              true
-              .yasic@@#varName#@args    Equ                                     void, parameter, default
-            Else Match                  type parameter,                         aParameter
-              Match                     =false,                                 hazDefault
-                .yasic@@#varName#@args  Equ                                     type, parameter
-              Else
-                fail `theType, 'already haz parameters with default values'
-              End Match
-            Else
-              ;( undefinded type )
-              Match                     =false,                                 hazDefault
-                .yasic@@#varName#@args  Equ                                     void, aParameter
-              Else
-                fail `theType, 'already haz parameters with default values'
-              End Match
-            End Match
-            Break
-          End Match
-          numParameters                 =                                       ( numParameters + 1 )
-        End While
-      Else
-        ;.yasic@@#varName#@args          Equ
-      End Match
-    ;}
   End If
 End Macro
 yasic@@lastVarUID                       =                                       null
-Macro yasic@@newGlobal                  varName,                                theType,                                theSize
+Struc yasic@@newGlobal                  varName,                                theType,                                theSize
   yasic@@checkName                      varName
   If ( yasic@@checkFailed = false )
-    .yasic@@#varName#@type              =                                       yasic@@tVariableGlobal
-    .yasic@@#varName#@retn              =                                       .yasic@@#theType#@tuid
-    .yasic@@#varName#@size              =                                       theSize
-    .yasic@@#varName#@vuid              =                                       .yasic@@ctr_#theType
-    .yasic@@ctr_#theType                =                                       ( .yasic@@ctr_#theType + 1 )
+    yasic@@#varName#@type               =                                       ( yasic@@tVariableGlobal  )
+    yasic@@#varName#@retn               =                                       ( yasic@@#theType#@tuid   )
+    yasic@@#varName#@size               =                                       ( theSize                 )
+    yasic@@#varName#@vuid               =                                       ( yasic@@ctr_#theType     )
+    yasic@@ctr_#theType                 =                                       ( yasic@@ctr_#theType + 1 )
   End If
-  yasic@@lastVarUID                     =                                       ( .yasic@@#varName#@vuid )
+  yasic@@lastVarUID                     =                                       ( yasic@@#varName#@vuid   )
   Macro varName                         value*
     Local expression
     Match                               == expression,                          value
@@ -227,31 +107,28 @@ Macro yasic@@newGlobal                  varName,                                
       yasic@@parseExpression            expression
       yasic@@displayExpression
       yasic@@compileExpression
-      pushConstant                      .yasic@@#theType#@tuid
-      pushConstant                      .yasic@@#varName#@vuid
+      pushConstant                      yasic@@#theType#@tuid
+      pushConstant                      yasic@@#varName#@vuid
       letGlobal
      Else
       fail `theType, 'invalid assign'
     End Match
   End Macro
-End Macro
-Struc yasic@@newGlobal                  varName,                                theType,                                theSize
-  yasic@@newGlobal                      varName,                                theType,                                theSize
   .                                     =                                       ( yasic@@lastVarUID )
 End Struc
-Macro yasic@@newLocal                   varName,                                theType,                                theSize
+Struc yasic@@newLocal                   varName,                                theType,                                theSize
   ;displayOnNewLine 'new local ', `yasic@@func
   Local __func__
   yasic@@checkName                      varName
   Match                                 __func__,                               yasic@@func
     If ( yasic@@checkFailed = false )
-      .yasic@@#__func__#@#varName#@type =                                       yasic@@tVariableLocal
-      .yasic@@#__func__#@#varName#@retn =                                       .yasic@@#theType#@tuid
-      .yasic@@#__func__#@#varName#@size =                                       theSize
-      .yasic@@#__func__#@#varName#@vuid =                                       .yasic@@#__func__#@ctr_#theType
-      .yasic@@#__func__#@ctr_#theType   =                                       ( .yasic@@#__func__#@ctr_#theType + 1 )
+      yasic@@#__func__#@#varName#@type  =                                       ( yasic@@tVariableLocal               )
+      yasic@@#__func__#@#varName#@retn  =                                       ( yasic@@#theType#@tuid               )
+      yasic@@#__func__#@#varName#@size  =                                       ( theSize                             )
+      yasic@@#__func__#@#varName#@vuid  =                                       ( yasic@@#__func__#@ctr_#theType      )
+      yasic@@#__func__#@ctr_#theType    =                                       ( yasic@@#__func__#@ctr_#theType + 1  )
     End If
-    yasic@@lastVarUID                   =                                       ( .yasic@@#__func__#@#varName#@vuid )
+    yasic@@lastVarUID                   =                                       ( yasic@@#__func__#@#varName#@vuid    )
   End Match
   Macro varName                         value*
     Local expression
@@ -260,45 +137,46 @@ Macro yasic@@newLocal                   varName,                                
       yasic@@parseExpression            expression
       yasic@@displayExpression
       yasic@@compileExpression
-      pushConstant                      .yasic@@#theType#@tuid
-      Match                             __func__,                               yasic@@func
-        pushConstant                    .yasic@@#__func__#@#varName#@vuid
+      pushConstant                      yasic@@#theType#@tuid
+      Match                             function,                               yasic@@func
+        pushConstant                    yasic@@#function#@#varName#@vuid
       End Match
       letGlobal
     Else
       fail `theType, 'invalid assign'
     End Match
   End Macro
-End Macro
-Struc yasic@@newLocal                   varName,                                theType,                                theSize
-  yasic@@newLocal                       varName,                                theType,                                theSize
   .                                     =                                       ( yasic@@lastVarUID )
 End Struc
-Macro yasic@@delType                    theType*
-End Macro
-Macro yasic@@newType                    theType*,                               theSize*
+
+Macro yasic@@newType                    theType*,                               theReturn* ;theSize*
   yasic@@checkName                      theType
   If ( yasic@@checkFailed = false )
-    .yasic@@#theType#@type              =                                       yasic@@tType
-    .yasic@@ctr_#theType                =                                       null
-    .yasic@@#theType#@tuid              =                                       yasic@@idOfType
+    yasic@@#theType#@type               =                                       yasic@@tType
+    yasic@@#theType#@tuid               =                                       yasic@@idOfType
+    yasic@@idOfType                     =                                       ( yasic@@idOfType + 1 )
+   
   End If
-  yasic@@idOfType                       =                                       ( yasic@@idOfType + 1 )
-  Store                                 word theSize                            At yasic@@lblTypes:( .yasic@@#theType#@tuid * word )
+
+
+
+
+
+  Store                                 word theSize                            At yasic@@lblTypes:( yasic@@#theType#@tuid * word )
   Macro yasic@@ctrLocalVariables        varName*
     yasic@@ctrLocalVariables            varName
-    If ( .yasic@@#varName#@num_#theType > null )
-      pushConstant                      .yasic@@#theType#@tuid
-      pushConstant                      .yasic@@#varName#@num_#theType
+    If ( yasic@@#varName#@num_#theType > null )
+      pushConstant                      yasic@@#theType#@tuid
+      pushConstant                      yasic@@#varName#@num_#theType
       allocLocal
     End If
     .yasic@@#varName#@ctr_#theType      =                                       null
   End Macro
   Macro yasic@@numLocalVariables        varName*
     yasic@@numLocalVariables            varName
-    .yasic@@#varName#@num_#theType      =                                       ( .yasic@@#varName#@ctr_#theType )
+    yasic@@#varName#@num_#theType       =                                       ( yasic@@#varName#@ctr_#theType )
   End Macro
-  .yasic@@delSymbols                    Equ                                     theType
+  yasic@@delSymbols                     Equ                                     theType
   Macro theType                         declaration&
     Local varName, anExpression, temp, theParameters
     Match                               varName =( theParameters =),            declaration                             ;<function>
@@ -324,7 +202,7 @@ Macro yasic@@newType                    theType*,                               
         yasic@@parseExpression          anExpression
         yasic@@displayExpression
         yasic@@compileExpression
-        pushConstant                    .yasic@@#theType#@tuid
+        pushConstant                    yasic@@#theType#@tuid
         pushConstant                    temp
         letGlobal
       Else
@@ -333,7 +211,7 @@ Macro yasic@@newType                    theType*,                               
         yasic@@parseExpression          anExpression
         yasic@@displayExpression
         yasic@@compileExpression
-        pushConstant                    .yasic@@#theType#@tuid
+        pushConstant                    yasic@@#theType#@tuid
         pushConstant                    temp
         letLocal
       End Match
@@ -347,4 +225,280 @@ Macro yasic@@newType                    theType*,                               
       End Match
     End Match
   End Macro
+End Macro
+
+
+
+
+
+
+
+
+yasic@@func                             Equ
+yasic@@checkFailed                      =                                       false                                   ;this prevent some weird errors
+Macro yasic@@checkName                  varName*
+  Local offs, char
+  ;( does varName math [A-Za-z][0-9A-Za-z_]*? )
+  ;{
+    Virtual                             At null
+      db `varName
+      Repeat                            ( $ ),                                  offs:( null )
+       Load                             char byte                               From offs
+        If  ( char >= '0' & char <= '9' & offs > 0 ) | \
+            ( char >= 'A' & char <= 'Z' ) | \
+            ( char >= 'a' & char <= 'z' ) | \
+            ( char = '_'  & offs > 0 )
+        Else
+          yasic@@checkFailed            =                                       true
+          fail 'yasic@@checkName', '»', `varName, '« does not match »[A-Za-z][0-9A-Za-z_]*«'
+        End If
+      End Repeat
+    End Virtual
+  ;}
+  ;( check local symbols )
+  ;{
+    Irpv                                item,                                   yasic@@localSymbols
+      If ( `item eq `varName )
+        yasic@@checkFailed              =                                       true
+        If      ( yasic@@#item#@type = yasic@@tFunction )
+          fail 'yasic@@checkName', 'local symbol »', `varName, '« already declared as function'
+        Else If ( yasic@@#item#@type = yasic@@tType )
+          fail 'yasic@@checkName', 'local symbol »', `varName, '« already declared as type'
+        Else
+          fail 'yasic@@checkName', 'local symbol »', `varName, '« already declared'
+        End If
+      End If
+    End Irpv
+  ;}
+  ;( check global symbols )
+  ;{
+    Irpv                                item,                                   yasic@@globalSymbols
+      If ( `item eq `varName )
+        yasic@@checkFailed              =                                       true
+        If      ( yasic@@#item#@type = yasic@@tFunction )
+          fail 'yasic@@checkName', 'global symbol »', `varName, '« already declared as function'
+        Else If ( yasic@@#item#@type = yasic@@tType )
+          fail 'yasic@@checkName', 'global symbol »', `varName, '« already declared as type'
+        Else
+          fail 'yasic@@checkName', 'global symbol »', `varName, '« already declared'
+        End If
+      End If
+    End Irpv
+  ;}
+End Macro
+Macro yasic@@compileArguments           varName*,                               theArguments*,                          theParameters*
+  Local lstArguments
+  Define                                lstArguments                            theArguments
+  Irpv                                  aParameter,                             yasic@@#varName#.lstParameters
+    Match                               anArgument =, restArguments,            lstArguments
+      Define                            lstArguments                            restArguments
+      Match                             theType =, theParameter =, theDefault,  aParameter
+        yasic@@parseExpression          anArgument
+        yasic@@compileExpression
+        yasic@@targetISA.compile
+      Else Match                        theType =, theParameter,                aParameter
+        yasic@@parseExpression          anArgument
+        yasic@@compileExpression
+        yasic@@targetISA.compile
+      End Match
+    Else Match                          anArgument,                             lstArguments
+      Define                            lstArguments
+      Match                             theType =, theParameter =, theDefault,  aParameter
+        yasic@@parseExpression          anArgument
+        yasic@@compileExpression
+        yasic@@targetISA.compile
+      Else Match                        theType =, theParameter,                aParameter
+        yasic@@parseExpression          anArgument
+        yasic@@compileExpression
+        yasic@@targetISA.compile
+      End Match
+    Else Match                          ,                                       lstArguments
+      Match                             theType =, theParameter =, theDefault,  aParameter
+        yasic@@parseExpression          theDefault
+        yasic@@compileExpression
+        yasic@@targetISA.compile
+      Else
+        fail `varName, 'not enought arguments'
+      End Match
+    End Match
+  End Irpv
+  Match                                 any,                                    lstArguments
+    fail `varName, 'too many arguments'
+  End Match
+End Macro
+Struc yasic@@parseParameters            theParameters&
+  Local lstParameters, hazDefault
+  .numParameters                        =                                       null
+  Match                                 any,                                    theParameters
+    Define                              lstParameters                           any
+    Define                              hazDefault                              false
+    While ( true )
+      Match                             aParameter =, restParameters,           lstParameters
+        Define                          lstParameters                           restParameters
+        Match                           type parameter == default,              aParameter
+          ;( undefinded type )
+          Define                        hazDefault                              true
+          .lstParameters                Equ                                     type, parameter, default
+        Else Match                      parameter == default,                   aParameter
+          ;( undefinded type )
+          Define                        hazDefault                              true
+          .lstParameters                Equ                                     void, parameter, default
+        Else Match                      type parameter,                         aParameter
+          Match                         =false,                                 hazDefault
+            .lstParameters              Equ                                     type, parameter
+          Else
+            fail `theType, 'already haz parameters with default values'
+          End Match
+        Else
+          Match                         =false,                                 hazDefault
+            .lstParameters              Equ                                     void, aParameter
+          Else
+            fail `theType, 'already haz parameters with default values'
+          End Match
+        End Match
+      Else Match                        aParameter,                             lstParameters
+        Match                           type parameter == default,              aParameter
+          Define                        hazDefault                              true
+          .lstParameters                Equ                                     type, parameter, default
+        Else Match                      parameter == default,                   aParameter
+          ;( undefinded type )
+          Define                        hazDefault                              true
+          .lstParameters                Equ                                     void, parameter, default
+        Else Match                      type parameter,                         aParameter
+          Match                         =false,                                 hazDefault
+            .lstParameters              Equ                                     type, parameter
+          Else
+            fail `theType, 'already haz parameters with default values'
+          End Match
+        Else
+          ;( undefinded type )
+          Match                         =false,                                 hazDefault
+            .lstParameters              Equ                                     void, aParameter
+          Else
+            fail `theType, 'already haz parameters with default values'
+          End Match
+        End Match
+        Break
+      End Match
+      .numParameters                    =                                       ( .numParameters + 1 )
+    End While
+  End Match
+End Struc
+Macro yasic@@newFunction                varName*,                               theType*,                               theParameters&
+  yasic@@checkName                      varName
+  If ( yasic@@checkFailed = false )
+    ;( initially )
+    ;{
+      yasic@@globalSymbols              Equ                                     varName
+      yasic@@#varName#.type             =                                       ( yasic@@tFunction          )
+      yasic@@#varName#.uid              =                                       ( yasic@@idOfNextGlobal     )
+      yasic@@#varName                   yasic@@parseParameters                  theParameters
+      yasic@@idOfNextGlobal             =                                       ( yasic@@idOfNextGlobal + 1 )
+      Macro varName                     arguments&
+        Match                           =( theArguments =),                     arguments
+          yasic@@compileArguments       < theArguments >,                       < theParameters >
+          yasic@@targetISA.yasic.call   yasic@@#varName
+        Else
+          fail `varName, 'cannot parse arguments'
+        End Match
+      End Macro
+      Match                             any,                                    theParameters
+        displayOnNewLine `theType, ' ', `varName, ' ( ', `any, ' ):'
+      Else
+        displayOnNewLine `theType, ' ', `varName, ' ():'
+      End Match
+      displayOnNewLine '{'
+      indentMore
+      yasic@@idOfNextLocal              =                                       null
+      format@@newSpace
+      yasic@@global                     Equ                                     -
+      Macro return?                     someArguments&
+        yasic@@#theType#.return         someArguments
+      End Macro
+    ;}
+    ;( finally )
+    ;{
+      Macro end?.theType
+        format@@endSpace
+        ;( delete all local symbols )
+        ;{n
+          yasic@@idOfNextLocal          =                                       null
+          Irpv                          item,                                   yasic@@localSymbols
+            Restore yasic@@#varName
+            Restore yasic@@localSymbols
+          End Irpv
+        ;}
+        Restore                         yasic@@global
+        indentLess
+        displayOnNewLine '}'
+        Purge end?.theType, return?
+      End Macro
+    ;}
+  End If
+End Macro
+Macro yasic@@newType                    theType*,           theKind*,           theMinimum*,        theMaximum*,        theLength*,         theReturn*,         theLoad*,           theStore*
+  yasic@@checkName                      theType
+  If ( yasinc@@checkFailed = false )
+    yasic@@#theType#.type               =                                       yasic@@tType
+    yasic@@#theType#.kind               Equ                                     theKind                                 ;kind of type, can be null, NUMBER, FLOAT, STRING.
+    yasic@@#theType#.minimum            =                                       theMinimum                              ;minimum constant value, that can be assigned to a variable of this type.
+    yasic@@#theType#.maximum            =                                       theMaximum                              ;maximum constant value, that can be assigned to a variable of this type.
+    yasic@@#theType#.length             =                                       theLength                               ;the size of variable in memory.
+    Macro yasic@@#theType#.return       someArguments&
+      theReturn                         someArguments
+    End Macro
+    Macro yasic@@#theType#.load         varid*,             theElement:( 0 )
+      theLoad                           varid*,             theElement:( 0 )
+    End Macro
+    Macro yasic@@#theType#.store        varid*,             theElement:( 0 )
+      theStore                          varid*,             theElement:( 0 )
+    End Macro
+    Macro theType                       declaration&
+      Match                             varName =( theParameters =),            declaration                             ;<function>
+        Match                           +,                                      yasic@@global
+          yasic@@newFunction                                                    varName,                                theType,                                theParameters
+        Else Match                      ==,                                     yasic@@global
+          fail `theType, 'oop is not implemented yet'
+        Else
+          fail `theType, 'declaration of function inside another function is not allowed'
+        End Match
+      Else Match                        varName =(=),                           declaration
+        Match                           +,                                      yasic@@global
+          yasic@@newFunction                                                    varName,                                theType
+        Else Match                      ==,                                     yasic@@global
+          fail `theType, 'oop is not implemented yet'
+        Else
+          fail `theType, 'declaration of function inside another function is not allowed'
+        End Match
+      Else Match                        varName == anExpression,                declaration                             ;<variables with value>
+        Match                           +,                                      yasic@@global
+          displayOnNewLine 'declare global ', `varName, ' equal to »', `anExpression, '«'
+          temp                          yasic@@newGlobal                        varName,                                theType,                                null
+          yasic@@parseExpression        anExpression
+          yasic@@displayExpression
+          yasic@@targetISA.compile
+          yasic@@#theType#@store        temp
+        Else
+          displayOnNewLine 'declare local  ', `varName, ' equal to »', `anExpression, '«'
+          temp                          yasic@@newLocal                         varName,                                theType,                                null
+          yasic@@parseExpression        anExpression
+          yasic@@displayExpression
+          yasic@@compileExpression
+          yasic@@#theType#@store        temp
+        End Match
+      Else Match                        varName,                                declaration                             ;<variables without value>
+        Match                           +,                                      yasic@@global
+          displayOnNewLine 'declare global ', `varName
+          yasic@@newGlobal                                                      varName,                                theType,                                null
+        Else
+          displayOnNewLine 'declare local ', `varName
+          yasic@@newLocal                                                       varName,                                theType,                                null
+        End Match
+      Else Match                        varName=[ elements =],                  declaration                             ;<empty   array with finite elements>
+      Else Match                        varName=[ elements =] == ={ content =}, declaration                             ;<defined array with finite elements>
+      Else
+        fail `theType, 'cannot parse definition of variable/function/array/etc., probably caused by an missing character, typo or something like that'
+      End Match
+    End Macro
+  End If
 End Macro

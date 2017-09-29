@@ -8,33 +8,30 @@ Macro tinafs@@initFormat                ignore&
       db 0xaa, 0x55
     format@@endSpace
   ;}
-  Macro tinafs@@file                    fileName*
-    .tinafs@@offs                       =                   format@@offsOutput
-    displayOnNewLine 'offset: '
-    displayDecimal   .tinafs@@offs
-    displayOnNewLine 'length: '
-    displayDecimal   .tinafs@@size
-    displayOnNewLine 'dd if=build/test0 of=build/test0.', fileName, ' bs=1 skip='
-    displayDecimal   .tinafs@@offs
-    display          ' count='
-    displayDecimal   .tinafs@@size
-  End Macro
   Struc file                            fileName*
-    Local temp
-    Repeat 1, temp:( tinafs@@ctrFiles )
-      tinafs@@lbl#temp:
-    End Repeat
-    displayOnNewLine '<file:', fileName, '>'
-    displayOnNewLine '{'
-    indentMore
-    tinafs@@file                        fileName
-    tinafs@@ctrFiles                    =                   ( tinafs@@ctrFiles + 1 )
     Macro end?.file
-      .tinafs@@size                     =                   ( format@@offsOutput - .tinafs@@offs )
+      tinafs.size                       =                   ( format@@offsOutput - tinafs.offs )
       indentLess
       displayOnNewLine '}'
       Purge end.file
+      context@@closeLocal
+      context@@endContext
     End Macro
+    context@@newContext
+    context@@beginLocal
+    displayOnNewLine '<file:', fileName, '>'
+    displayOnNewLine '{'
+    indentMore
+    tinafs.offs                         =                   format@@offsOutput
+    displayOnNewLine 'offset: '
+    displayDecimal   tinafs.offs
+    displayOnNewLine 'length: '
+    displayDecimal   tinafs.size
+    displayOnNewLine 'dd if=build/test0 of=build/test0.', fileName, ' bs=1 skip='
+    displayDecimal   tinafs.offs
+    display          ' count='
+    displayDecimal   tinafs.size
+    tinafs@@ctrFiles                    =                   ( tinafs@@ctrFiles + 1 )
   End Struc
   Macro file                            fileName*
     Local void

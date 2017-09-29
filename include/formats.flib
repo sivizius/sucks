@@ -121,6 +121,7 @@ End Macro
   Include 'include/formats/elf.flib'
   Include 'include/formats/tinafs.flib'
   Include 'include/formats/uf4.flib'
+  Include 'include/formats/webassembly.flib'
   Include 'include/assembly.flib'
   ;add custom formats here:
 ;}

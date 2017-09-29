@@ -1,3 +1,23 @@
+;;                                   __________            __________
+;; ________________________________  \         \    __/\  /         /  ________________________________
+;;|                                \  \         |  |  // |         /  /                                |
+;;|                                 \  \        |__|  |__|        /  /                                 |
+;;|__________________________________\  \                        /  /__________________________________|
+;; ____________________________________  \                      /  ____________________________________
+;;|                                    \  \     |\__/\__/|     /  /                                    |
+;;|                                     \  \    |    //  |    /  /                                     |
+;;|______________________________________\  \   |   //   |   /  /______________________________________|
+;; ________________________________________  \  \  //    /  /   ________________________________________
+;;|                                        \  \  \      /  /  /                                        |
+;;|                                         \  \  \    /  /  /                                         |
+;;|__________________________________________\ _|  \__/  |_ /__________________________________________|
+;;                                            |/\        /\|
+;;                                              /_      _\
+;;                                                \    /
+;;                                                 \  /
+;;                                                  \/
+;;                                           GLORY TO ARSTOTZKA
+
 Macro yasic@@parseChar                  char&
   Local stack0, stack1
   Local __func__
@@ -308,22 +328,10 @@ Macro yasic@@compileExpression
   yasic@@ptrQueque                      =                                       null
   While ( yasic@@ptrQueque < yasic@@endQueque )
     temp                                yasic@@deque
-    If      ( temp.type = yasic@@tOperator )
-      yasic@@opCompile                  temp.value
-    Else If ((( temp.type >= yasic@@tConstByte ) & ( temp.type <= yasic@@tConstQWord )) | temp.type <= yasic@@tConstant )
-      pushConstant                      ( temp.value + 0 )
-    Else If ( temp.type = yasic@@tParentheses )
-      fail 'yasic@@compileExpression', 'missing closing parenthesis'
-    Else If ( temp.type = yasic@@tVariableGlobal )
-      pushConstant                      ( temp.misc  + 0 )                      ;type uid
-      pushConstant                      ( temp.value + 0 )                      ;var uid
-      getGlobal
-    Else If ( temp.type = yasic@@tVariableLocal )
-      pushConstant                      ( temp.misc  + 0 )                      ;type uid
-      pushConstant                      ( temp.value + 0 )                      ;var uid
-      getLocal
+    If ( temp.type <> yasic@@tParentheses )
+      yasic@@targetISA.compile          temp
     Else
-      fail 'yasic@@compileExpression', 'cannot compile this'
+      fail 'yasic@@compileExpression', 'missing closing parenthesis'
     End If
   End While
 End Macro

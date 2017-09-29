@@ -1,0 +1,10 @@
+Macro _repeat
+  Repeat 1, temp:( 2 )
+    line Equ temp
+End Macro
+Macro _end_repeat
+  End Repeat
+End Macro
+_repeat
+  display '0' + line
+_end_repeat
