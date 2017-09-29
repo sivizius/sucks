@@ -399,6 +399,7 @@ Macro yasic@@newFunction                varName*,                               
           yasic@@compileArguments       < theArguments >,                       < theParameters >
           yasic@@targetISA.yasic.call   yasic@@#varName
         Else
+
           fail `varName, 'cannot parse arguments'
         End Match
       End Macro
